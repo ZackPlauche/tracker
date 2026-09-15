@@ -56,7 +56,7 @@ export function MetricCard({
       } ${isDragOver ? 'ring-2 ring-accent' : ''}`}
       {...dragHandleProps}
     >
-      <div className="flex items-start justify-between gap-1 px-3 pt-3 pb-1">
+      <div className="flex items-start justify-between gap-1 px-3 pt-3 pb-2">
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <span
             className="mt-0.5 cursor-grab touch-none text-text-dim active:cursor-grabbing"
@@ -136,18 +136,18 @@ export function MetricCard({
         </div>
       </div>
 
-      <div className="px-3 pb-1">
-        <p className="text-xs text-text-dim">Today</p>
-        <p className="text-3xl font-bold tabular-nums tracking-tight text-text">{todayCount}</p>
-      </div>
-
       <button
         type="button"
         onClick={onIncrement}
-        className="tap-feedback mx-3 mb-2 flex min-h-[4.5rem] flex-1 items-center justify-center rounded-xl bg-accent text-3xl font-bold text-white shadow-md shadow-accent/25 transition-colors hover:bg-accent-hover active:scale-[0.97]"
-        aria-label={`Add 1 to ${metric.name}`}
+        className="tap-feedback mx-3 mb-2 flex min-h-[7.5rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl bg-accent text-white shadow-md shadow-accent/25 transition-colors hover:bg-accent-hover active:scale-[0.97]"
+        aria-label={`Add 1 to ${metric.name}. Current count ${todayCount}`}
       >
-        +1
+        <span className="text-5xl font-bold tabular-nums leading-none tracking-tight">
+          {todayCount}
+        </span>
+        <span className="text-[11px] font-medium uppercase tracking-wider text-white/70">
+          tap to count
+        </span>
       </button>
 
       <div className="flex gap-2 px-3 pb-3">
