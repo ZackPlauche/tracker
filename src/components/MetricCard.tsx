@@ -143,7 +143,7 @@ export function MetricCard({
         aria-label={`Add 1 to ${metric.name}. Current count ${todayCount}`}
       >
         <span className="text-5xl font-bold tabular-nums leading-none tracking-tight">
-          {todayCount}
+          {Math.max(0, todayCount)}
         </span>
       </button>
 
@@ -151,7 +151,8 @@ export function MetricCard({
         <button
           type="button"
           onClick={onDecrement}
-          className="tap-feedback flex h-11 flex-1 items-center justify-center rounded-xl bg-surface-hover text-sm font-medium text-text-muted hover:bg-border hover:text-text"
+          disabled={todayCount <= 0}
+          className="tap-feedback flex h-11 flex-1 items-center justify-center rounded-xl bg-surface-hover text-sm font-medium text-text-muted hover:bg-border hover:text-text disabled:opacity-30 disabled:hover:bg-surface-hover disabled:hover:text-text-muted"
           aria-label={`Subtract 1 from ${metric.name}`}
         >
           −1

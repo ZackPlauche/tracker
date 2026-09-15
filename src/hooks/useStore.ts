@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 import { loadData, saveData } from '../storage'
 import type { AppData, Event, Funnel, Metric } from '../types'
-import { sortedMetrics } from '../utils'
+import { sortedMetrics, todayCount } from '../utils'
 
 export function useStore() {
   const [data, setData] = useState<AppData>(() => loadData())
@@ -132,13 +132,16 @@ export function useStore() {
   }, [])
 
   const decrement = useCallback((metricId: string) => {
-    const event: Event = {
-      id: uuid(),
-      metricId,
-      timestamp: Date.now(),
-      delta: -1,
-    }
-    setData((d) => ({ ...d, events: [...d.events, event] }))
+    setData((d) => {
+      if (todayCount(d.events, metricId) <= 0) return d
+      const event: Event = {
+        id: uuid(),
+        metricId,
+        timestamp: Date.now(),
+        delta: -1,
+      }
+      return { ...d, events: [...d.events, event] }
+    })
   }, [])
 
   const undoLast = useCallback((metricId: string) => {
