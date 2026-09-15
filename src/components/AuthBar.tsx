@@ -9,6 +9,7 @@ type Props = {
   configured: boolean
   syncStatus: SyncStatus
   error: string | null
+  syncError?: string | null
   onSignIn: () => void
   onSignOut: () => void
 }
@@ -19,6 +20,7 @@ export function AuthBar({
   configured,
   syncStatus,
   error,
+  syncError = null,
   onSignIn,
   onSignOut,
 }: Props) {
@@ -37,7 +39,9 @@ export function AuthBar({
           <span className="hidden text-[10px] text-text-dim sm:inline">Syncing…</span>
         )}
         {syncStatus === 'error' && (
-          <span className="hidden text-[10px] text-danger sm:inline">Sync error</span>
+          <span className="max-w-[9rem] truncate text-[10px] text-danger" title={syncError ?? 'Sync error'}>
+            {syncError ?? 'Sync error'}
+          </span>
         )}
         {user.photoURL ? (
           <img

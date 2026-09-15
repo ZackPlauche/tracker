@@ -10,6 +10,7 @@ type Props = {
   onCreate: (name: string) => void
   onRename: (id: string, name: string) => void
   onDelete: (id: string) => void
+  onReset?: () => void
 }
 
 export function SideMenu({
@@ -21,6 +22,7 @@ export function SideMenu({
   onCreate,
   onRename,
   onDelete,
+  onReset,
 }: Props) {
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
@@ -200,6 +202,19 @@ export function SideMenu({
                 <path d="M12 5v14M5 12h14" />
               </svg>
               New Funnel
+            </button>
+          )}
+          {onReset && (
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm('Clear all funnels and counts on this account? This cannot be undone.')) {
+                  onReset()
+                }
+              }}
+              className="tap-feedback mt-2 w-full rounded-xl px-3 py-2 text-xs font-medium text-danger hover:bg-danger/10"
+            >
+              Clear all data
             </button>
           )}
         </div>

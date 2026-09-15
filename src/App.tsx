@@ -45,6 +45,7 @@ export default function App() {
           loading={auth.loading}
           configured={auth.configured}
           syncStatus={store.syncStatus}
+          syncError={store.syncError}
           error={auth.error}
           onSignIn={() => {
             void auth.signInWithGoogle()
@@ -79,6 +80,9 @@ export default function App() {
         onCreate={store.createFunnel}
         onRename={store.renameFunnel}
         onDelete={store.deleteFunnel}
+        onReset={() => {
+          void store.resetAll()
+        }}
       />
 
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden">

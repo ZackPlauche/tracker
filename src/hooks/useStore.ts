@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { doc, onSnapshot, setDoc } from 'firebase/firestore'
 import { v4 as uuid } from 'uuid'
 import { db } from '../lib/firebase'
-import { loadData, saveData } from '../storage'
+import { clearLocalData, emptyData, loadData, saveData } from '../storage'
 import type { AppData, CloudAppData, Event, Funnel, Metric } from '../types'
 import { sortedMetrics, todayCount } from '../utils'
 
@@ -13,12 +13,14 @@ function stamp(data: AppData): AppData {
 }
 
 function toCloud(data: AppData): CloudAppData {
-  return {
+  const payload: CloudAppData = {
     funnels: data.funnels,
     events: data.events,
     activeFunnelId: data.activeFunnelId,
     updatedAt: data.updatedAt ?? Date.now(),
   }
+  // Firestore rejects undefined; JSON round-trip strips it
+  return JSON.parse(JSON.stringify(payload)) as CloudAppData
 }
 
 function fromCloud(raw: CloudAppData): AppData {
@@ -42,6 +44,7 @@ export function useStore(uid: string | null) {
   const [syncStatus, setSyncStatus] = useState<'local' | 'syncing' | 'synced' | 'error'>(
     uid ? 'syncing' : 'local',
   )
+  const [syncError, setSyncError] = useState<string | null>(null)
 
   const dataRef = useRef(data)
   dataRef.current = data
@@ -68,6 +71,7 @@ export function useStore(uid: string | null) {
     }
 
     setSyncStatus('syncing')
+    setSyncError(null)
     const ref = doc(db, 'users', uid)
 
     const unsub = onSnapshot(
@@ -92,8 +96,9 @@ export function useStore(uid: string | null) {
                 queueMicrotask(() => {
                   applyingRemote.current = false
                 })
-              } catch {
+              } catch (e) {
                 setSyncStatus('error')
+                setSyncError(e instanceof Error ? e.message : 'Cloud write failed')
               }
               return
             }
@@ -127,7 +132,10 @@ export function useStore(uid: string | null) {
           })
         })()
       },
-      () => setSyncStatus('error'),
+      (err) => {
+        setSyncStatus('error')
+        setSyncError(err instanceof Error ? err.message : 'Cloud listen failed')
+      },
     )
 
     return () => {
@@ -159,7 +167,10 @@ export function useStore(uid: string | null) {
           if (pendingWriteAt.current === writeAt) pendingWriteAt.current = null
           setSyncStatus('synced')
         })
-        .catch(() => setSyncStatus('error'))
+        .catch((e) => {
+          setSyncStatus('error')
+          setSyncError(e instanceof Error ? e.message : 'Cloud write failed')
+        })
     }, WRITE_DEBOUNCE_MS)
 
     return () => {
@@ -380,10 +391,38 @@ export function useStore(uid: string | null) {
     [mutate],
   )
 
+
+  const resetAll = useCallback(async () => {
+    const blank = stamp(emptyData())
+    applyingRemote.current = true
+    setData(blank)
+    clearLocalData()
+    saveData(blank)
+    syncedAt.current = blank.updatedAt ?? 0
+    pendingWriteAt.current = blank.updatedAt ?? null
+    if (uid && db) {
+      try {
+        await setDoc(doc(db, 'users', uid), toCloud(blank))
+        setSyncStatus('synced')
+        setSyncError(null)
+      } catch (e) {
+        setSyncStatus('error')
+        setSyncError(e instanceof Error ? e.message : 'Failed to clear cloud')
+      }
+    } else {
+      setSyncStatus('local')
+    }
+    queueMicrotask(() => {
+      applyingRemote.current = false
+    })
+  }, [uid])
+
   return {
     data,
     activeFunnel,
     syncStatus,
+    syncError,
+    resetAll,
     setActiveFunnel,
     createFunnel,
     renameFunnel,
