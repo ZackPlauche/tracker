@@ -3,6 +3,8 @@ import { SideMenu } from './components/SideMenu'
 import { BottomTabs } from './components/BottomTabs'
 import { CountView } from './components/CountView'
 import { SheetView } from './components/SheetView'
+import { AuthBar } from './components/AuthBar'
+import { useAuth } from './hooks/useAuth'
 import { useStore } from './hooks/useStore'
 import type { ChartPeriod, ViewTab } from './types'
 
@@ -11,7 +13,8 @@ const ChartsView = lazy(() =>
 )
 
 export default function App() {
-  const store = useStore()
+  const auth = useAuth()
+  const store = useStore(auth.user?.uid ?? null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [tab, setTab] = useState<ViewTab>('count')
   const [period, setPeriod] = useState<ChartPeriod>('7d')
@@ -20,11 +23,11 @@ export default function App() {
 
   return (
     <div className="flex h-full min-h-dvh flex-col bg-surface text-text safe-top safe-left safe-right">
-      <header className="flex shrink-0 items-center gap-3 border-b border-border-subtle bg-surface-raised/80 px-3 py-3 backdrop-blur-md">
+      <header className="flex shrink-0 items-center gap-2 border-b border-border-subtle bg-surface-raised/80 px-3 py-3 backdrop-blur-md">
         <button
           type="button"
           onClick={() => setMenuOpen(true)}
-          className="tap-feedback flex h-11 w-11 items-center justify-center rounded-xl bg-surface-card text-text hover:bg-surface-hover"
+          className="tap-feedback flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-card text-text hover:bg-surface-hover"
           aria-label="Open menu"
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -37,7 +40,35 @@ export default function App() {
             {activeFunnel?.name ?? 'No funnel'}
           </h1>
         </div>
+        <AuthBar
+          user={auth.user}
+          loading={auth.loading}
+          configured={auth.configured}
+          syncStatus={store.syncStatus}
+          error={auth.error}
+          onSignIn={() => {
+            void auth.signInWithGoogle()
+          }}
+          onSignOut={() => {
+            void auth.signOut()
+          }}
+        />
       </header>
+
+      {!auth.user && auth.configured && (
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border-subtle bg-accent/10 px-3 py-2 text-xs text-text-muted">
+          <span>Local only — sign in to sync desktop &amp; phone.</span>
+          <button
+            type="button"
+            onClick={() => {
+              void auth.signInWithGoogle()
+            }}
+            className="tap-feedback shrink-0 font-semibold text-accent hover:text-accent-hover"
+          >
+            Sign in with Google
+          </button>
+        </div>
+      )}
 
       <SideMenu
         open={menuOpen}

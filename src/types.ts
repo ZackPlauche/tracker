@@ -22,6 +22,15 @@ export type AppData = {
   funnels: Funnel[]
   events: Event[]
   activeFunnelId: string | null
+  /** Last local/cloud write time — used for LWW sync */
+  updatedAt?: number
+}
+
+export type CloudAppData = {
+  funnels: Funnel[]
+  events: Event[]
+  activeFunnelId: string | null
+  updatedAt: number
 }
 
 export type ViewTab = 'count' | 'charts' | 'sheet'
