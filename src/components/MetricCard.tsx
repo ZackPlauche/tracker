@@ -1,4 +1,5 @@
 import { useState, type DragEvent } from 'react'
+import { Icon } from '@iconify/react'
 import type { Metric } from '../types'
 
 type Props = {
@@ -214,10 +215,7 @@ export function MetricCard({
           className="tap-feedback flex h-11 flex-1 items-center justify-center rounded-xl bg-surface-hover text-text-muted hover:bg-border hover:text-text disabled:opacity-30"
           aria-label={`Undo last for ${metric.name}`}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M3 7v6h6" />
-            <path d="M3 13a9 9 0 1 0 3-7.7L3 7" />
-          </svg>
+          <Icon icon="mdi:undo" width={22} height={22} aria-hidden />
         </button>
         <button
           type="button"
@@ -226,9 +224,7 @@ export function MetricCard({
           className="tap-feedback flex h-11 flex-1 items-center justify-center rounded-xl bg-surface-hover text-text-muted hover:bg-border hover:text-text disabled:opacity-30"
           aria-label={`Edit count for ${metric.name}`}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
-          </svg>
+          <Icon icon="mdi:pencil" width={20} height={20} aria-hidden />
         </button>
       </div>
     </div>
