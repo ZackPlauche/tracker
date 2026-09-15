@@ -139,14 +139,11 @@ export function MetricCard({
       <button
         type="button"
         onClick={onIncrement}
-        className="tap-feedback mx-3 mb-2 flex min-h-[7.5rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl bg-accent text-white shadow-md shadow-accent/25 transition-colors hover:bg-accent-hover active:scale-[0.97]"
+        className="tap-feedback mx-3 mb-2 flex min-h-[7.5rem] flex-1 items-center justify-center rounded-xl bg-accent text-white shadow-md shadow-accent/25 transition-colors hover:bg-accent-hover active:scale-[0.97]"
         aria-label={`Add 1 to ${metric.name}. Current count ${todayCount}`}
       >
         <span className="text-5xl font-bold tabular-nums leading-none tracking-tight">
           {todayCount}
-        </span>
-        <span className="text-[11px] font-medium uppercase tracking-wider text-white/70">
-          tap to count
         </span>
       </button>
 
