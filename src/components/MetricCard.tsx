@@ -215,7 +215,7 @@ export function MetricCard({
           className="tap-feedback flex h-11 flex-1 items-center justify-center rounded-xl bg-surface-hover text-text-muted hover:bg-border hover:text-text disabled:opacity-30"
           aria-label={`Undo last for ${metric.name}`}
         >
-          <Icon icon="mdi:undo" width={22} height={22} aria-hidden />
+          <Icon icon="lucide:rotate-ccw" width={22} height={22} aria-hidden />
         </button>
         <button
           type="button"
