@@ -7,6 +7,7 @@ type Props = {
   onIncrement: () => void
   onDecrement: () => void
   onUndo: () => void
+  onSetCount: (value: number) => void
   onRename: (name: string) => void
   onDelete: () => void
   onMoveUp?: () => void
@@ -30,6 +31,7 @@ export function MetricCard({
   onIncrement,
   onDecrement,
   onUndo,
+  onSetCount,
   onRename,
   onDelete,
   onMoveUp,
@@ -42,11 +44,24 @@ export function MetricCard({
 }: Props) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(metric.name)
+  const [editingCount, setEditingCount] = useState(false)
+  const [countDraft, setCountDraft] = useState(String(Math.max(0, todayCount)))
 
   function commitRename() {
     if (name.trim()) onRename(name)
     else setName(metric.name)
     setEditing(false)
+  }
+
+  function openCountEdit() {
+    setCountDraft(String(Math.max(0, todayCount)))
+    setEditingCount(true)
+  }
+
+  function commitCount() {
+    const parsed = Number.parseInt(countDraft, 10)
+    if (Number.isFinite(parsed)) onSetCount(parsed)
+    setEditingCount(false)
   }
 
   return (
@@ -136,22 +151,57 @@ export function MetricCard({
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={onIncrement}
-        className="tap-feedback mx-3 mb-2 flex min-h-[7.5rem] flex-1 items-center justify-center rounded-xl bg-accent text-white shadow-md shadow-accent/25 transition-colors hover:bg-accent-hover active:scale-[0.97]"
-        aria-label={`Add 1 to ${metric.name}. Current count ${todayCount}`}
-      >
-        <span className="text-5xl font-bold tabular-nums leading-none tracking-tight">
-          {Math.max(0, todayCount)}
-        </span>
-      </button>
+      {editingCount ? (
+        <form
+          className="mx-3 mb-2 flex min-h-[7.5rem] flex-1 flex-col justify-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            commitCount()
+          }}
+        >
+          <input
+            autoFocus
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={countDraft}
+            onChange={(e) => setCountDraft(e.target.value.replace(/[^0-9]/g, ''))}
+            className="w-full rounded-xl bg-surface px-3 py-4 text-center text-4xl font-bold tabular-nums text-text outline-none ring-2 ring-accent"
+            aria-label={`Edit count for ${metric.name}`}
+          />
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              className="tap-feedback flex-1 rounded-xl bg-accent py-2.5 text-sm font-semibold text-white"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditingCount(false)}
+              className="tap-feedback rounded-xl bg-surface-hover px-4 py-2.5 text-sm text-text-muted"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={onIncrement}
+          className="tap-feedback mx-3 mb-2 flex min-h-[7.5rem] flex-1 items-center justify-center rounded-xl bg-accent text-white shadow-md shadow-accent/25 transition-colors hover:bg-accent-hover active:scale-[0.97]"
+          aria-label={`Add 1 to ${metric.name}. Current count ${Math.max(0, todayCount)}`}
+        >
+          <span className="text-5xl font-bold tabular-nums leading-none tracking-tight">
+            {Math.max(0, todayCount)}
+          </span>
+        </button>
+      )}
 
       <div className="flex gap-2 px-3 pb-3">
         <button
           type="button"
           onClick={onDecrement}
-          disabled={todayCount <= 0}
+          disabled={todayCount <= 0 || editingCount}
           className="tap-feedback flex h-11 flex-1 items-center justify-center rounded-xl bg-surface-hover text-sm font-medium text-text-muted hover:bg-border hover:text-text disabled:opacity-30 disabled:hover:bg-surface-hover disabled:hover:text-text-muted"
           aria-label={`Subtract 1 from ${metric.name}`}
         >
@@ -159,8 +209,18 @@ export function MetricCard({
         </button>
         <button
           type="button"
+          onClick={openCountEdit}
+          disabled={editingCount}
+          className="tap-feedback flex h-11 flex-1 items-center justify-center rounded-xl bg-surface-hover text-sm font-medium text-text-muted hover:bg-border hover:text-text disabled:opacity-30"
+          aria-label={`Edit count for ${metric.name}`}
+        >
+          Edit
+        </button>
+        <button
+          type="button"
           onClick={onUndo}
-          className="tap-feedback flex h-11 flex-1 items-center justify-center rounded-xl bg-surface-hover text-sm font-medium text-text-muted hover:bg-border hover:text-text"
+          disabled={editingCount}
+          className="tap-feedback flex h-11 flex-1 items-center justify-center rounded-xl bg-surface-hover text-sm font-medium text-text-muted hover:bg-border hover:text-text disabled:opacity-30"
           aria-label={`Undo last for ${metric.name}`}
         >
           Undo

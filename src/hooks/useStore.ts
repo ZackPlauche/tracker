@@ -160,6 +160,23 @@ export function useStore() {
     })
   }, [])
 
+  const setTodayCount = useCallback((metricId: string, next: number) => {
+    const value = Math.max(0, Math.floor(Number(next)))
+    if (!Number.isFinite(value)) return
+    setData((d) => {
+      const current = todayCount(d.events, metricId)
+      const delta = value - current
+      if (delta === 0) return d
+      const event: Event = {
+        id: uuid(),
+        metricId,
+        timestamp: Date.now(),
+        delta,
+      }
+      return { ...d, events: [...d.events, event] }
+    })
+  }, [])
+
   return {
     data,
     activeFunnel,
@@ -174,5 +191,6 @@ export function useStore() {
     increment,
     decrement,
     undoLast,
+    setTodayCount,
   }
 }

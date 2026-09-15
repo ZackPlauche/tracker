@@ -75,6 +75,7 @@ export default function App() {
                   onIncrement={store.increment}
                   onDecrement={store.decrement}
                   onUndo={store.undoLast}
+                  onSetCount={store.setTodayCount}
                   onRenameMetric={(metricId, name) =>
                     store.renameMetric(activeFunnel.id, metricId, name)
                   }

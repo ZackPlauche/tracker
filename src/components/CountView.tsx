@@ -9,6 +9,7 @@ type Props = {
   onIncrement: (metricId: string) => void
   onDecrement: (metricId: string) => void
   onUndo: (metricId: string) => void
+  onSetCount: (metricId: string, value: number) => void
   onRenameMetric: (metricId: string, name: string) => void
   onDeleteMetric: (metricId: string) => void
   onCreateMetric: (name: string) => void
@@ -21,6 +22,7 @@ export function CountView({
   onIncrement,
   onDecrement,
   onUndo,
+  onSetCount,
   onRenameMetric,
   onDeleteMetric,
   onCreateMetric,
@@ -102,6 +104,7 @@ export function CountView({
             onIncrement={() => onIncrement(m.id)}
             onDecrement={() => onDecrement(m.id)}
             onUndo={() => onUndo(m.id)}
+            onSetCount={(value) => onSetCount(m.id, value)}
             onRename={(name) => onRenameMetric(m.id, name)}
             onDelete={() => onDeleteMetric(m.id)}
             onMoveUp={() => moveMetric(m.id, -1)}
