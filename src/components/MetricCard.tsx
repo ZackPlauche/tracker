@@ -1,4 +1,4 @@
-import { useState, type DragEvent } from 'react'
+import { useState, type CSSProperties, type HTMLAttributes } from 'react'
 import { Icon } from '@iconify/react'
 import type { Metric } from '../types'
 
@@ -11,19 +11,9 @@ type Props = {
   onSetCount: (value: number) => void
   onRename: (name: string) => void
   onDelete: () => void
-  onMoveUp?: () => void
-  onMoveDown?: () => void
-  canMoveUp?: boolean
-  canMoveDown?: boolean
-  dragHandleProps?: {
-    draggable: boolean
-    onDragStart: (e: DragEvent) => void
-    onDragOver: (e: DragEvent) => void
-    onDrop: (e: DragEvent) => void
-    onDragEnd: () => void
-  }
+  dragHandleProps?: HTMLAttributes<HTMLButtonElement>
+  style?: CSSProperties
   isDragging?: boolean
-  isDragOver?: boolean
 }
 
 export function MetricCard({
@@ -35,13 +25,9 @@ export function MetricCard({
   onSetCount,
   onRename,
   onDelete,
-  onMoveUp,
-  onMoveDown,
-  canMoveUp,
-  canMoveDown,
   dragHandleProps,
+  style,
   isDragging,
-  isDragOver,
 }: Props) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(metric.name)
@@ -67,19 +53,21 @@ export function MetricCard({
 
   return (
     <div
-      className={`relative flex flex-col overflow-hidden rounded-2xl bg-surface-card border border-border-subtle shadow-lg transition-all ${
-        isDragging ? 'opacity-40 scale-95' : ''
-      } ${isDragOver ? 'ring-2 ring-accent' : ''}`}
-      {...dragHandleProps}
+      style={style}
+      className={`relative flex flex-col overflow-hidden rounded-2xl bg-surface-card border border-border-subtle shadow-lg transition-shadow ${
+        isDragging ? 'z-20 opacity-95 shadow-2xl ring-2 ring-accent' : ''
+      }`}
     >
       <div className="flex items-start justify-between gap-1 px-3 pt-3 pb-2">
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
-          <span
-            className="mt-0.5 cursor-grab touch-none text-text-dim active:cursor-grabbing"
+          <button
+            type="button"
+            className="mt-0.5 flex h-9 w-9 shrink-0 touch-none items-center justify-center rounded-lg text-text-dim active:bg-surface-hover active:text-text"
             title="Drag to reorder"
             aria-label="Drag to reorder"
+            {...dragHandleProps}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
               <circle cx="9" cy="6" r="1.5" />
               <circle cx="15" cy="6" r="1.5" />
               <circle cx="9" cy="12" r="1.5" />
@@ -87,7 +75,7 @@ export function MetricCard({
               <circle cx="9" cy="18" r="1.5" />
               <circle cx="15" cy="18" r="1.5" />
             </svg>
-          </span>
+          </button>
           {editing ? (
             <form
               className="min-w-0 flex-1"
@@ -118,38 +106,18 @@ export function MetricCard({
             </button>
           )}
         </div>
-        <div className="flex shrink-0 items-center">
-          <button
-            type="button"
-            onClick={onMoveUp}
-            disabled={!canMoveUp}
-            className="tap-feedback flex h-8 w-8 items-center justify-center rounded-lg text-text-dim hover:bg-surface-hover disabled:opacity-30"
-            aria-label="Move earlier in funnel"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 15l-6-6-6 6"/></svg>
-          </button>
-          <button
-            type="button"
-            onClick={onMoveDown}
-            disabled={!canMoveDown}
-            className="tap-feedback flex h-8 w-8 items-center justify-center rounded-lg text-text-dim hover:bg-surface-hover disabled:opacity-30"
-            aria-label="Move later in funnel"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (confirm(`Delete metric “${metric.name}”?`)) onDelete()
-            }}
-            className="tap-feedback flex h-8 w-8 items-center justify-center rounded-lg text-text-dim hover:bg-danger/15 hover:text-danger"
-            aria-label={`Delete ${metric.name}`}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
-            </svg>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            if (confirm(`Delete metric “${metric.name}”?`)) onDelete()
+          }}
+          className="tap-feedback flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-text-dim hover:bg-danger/15 hover:text-danger"
+          aria-label={`Delete ${metric.name}`}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+          </svg>
+        </button>
       </div>
 
       {editingCount ? (
@@ -215,7 +183,7 @@ export function MetricCard({
           className="tap-feedback flex h-11 flex-1 items-center justify-center rounded-xl bg-surface-hover text-text-muted hover:bg-border hover:text-text disabled:opacity-30"
           aria-label={`Undo last for ${metric.name}`}
         >
-          <Icon icon="lucide:rotate-ccw" width={22} height={22} aria-hidden />
+          <Icon icon="ph:arrow-counter-clockwise" width={18} height={18} aria-hidden />
         </button>
         <button
           type="button"
@@ -224,7 +192,7 @@ export function MetricCard({
           className="tap-feedback flex h-11 flex-1 items-center justify-center rounded-xl bg-surface-hover text-text-muted hover:bg-border hover:text-text disabled:opacity-30"
           aria-label={`Edit count for ${metric.name}`}
         >
-          <Icon icon="mdi:pencil" width={20} height={20} aria-hidden />
+          <Icon icon="mdi:pencil" width={18} height={18} aria-hidden />
         </button>
       </div>
     </div>

@@ -1,5 +1,21 @@
-import { useState } from 'react'
-import type { Event, Funnel } from '../types'
+import { useMemo, useState } from 'react'
+import {
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import type { Event, Funnel, Metric } from '../types'
 import { sortedMetrics, todayCount } from '../utils'
 import { MetricCard } from './MetricCard'
 
@@ -16,6 +32,55 @@ type Props = {
   onReorder: (orderedIds: string[]) => void
 }
 
+function SortableMetricCard({
+  metric,
+  events,
+  onIncrement,
+  onDecrement,
+  onUndo,
+  onSetCount,
+  onRename,
+  onDelete,
+}: {
+  metric: Metric
+  events: Event[]
+  onIncrement: () => void
+  onDecrement: () => void
+  onUndo: () => void
+  onSetCount: (value: number) => void
+  onRename: (name: string) => void
+  onDelete: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: metric.id,
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className="h-full">
+      <MetricCard
+        metric={metric}
+        todayCount={todayCount(events, metric.id)}
+        onIncrement={onIncrement}
+        onDecrement={onDecrement}
+        onUndo={onUndo}
+        onSetCount={onSetCount}
+        onRename={onRename}
+        onDelete={onDelete}
+        isDragging={isDragging}
+        dragHandleProps={{
+          ...attributes,
+          ...listeners,
+        }}
+      />
+    </div>
+  )
+}
+
 export function CountView({
   funnel,
   events,
@@ -29,10 +94,18 @@ export function CountView({
   onReorder,
 }: Props) {
   const metrics = sortedMetrics(funnel.metrics)
+  const metricIds = useMemo(() => metrics.map((m) => m.id), [metrics])
   const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
-  const [dragId, setDragId] = useState<string | null>(null)
-  const [overId, setOverId] = useState<string | null>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 180, tolerance: 8 },
+    }),
+  )
 
   function handleCreate() {
     if (!newName.trim()) return
@@ -41,30 +114,13 @@ export function CountView({
     setAdding(false)
   }
 
-  function handleDrop(targetId: string) {
-    if (!dragId || dragId === targetId) {
-      setDragId(null)
-      setOverId(null)
-      return
-    }
-    const ids = metrics.map((m) => m.id)
-    const from = ids.indexOf(dragId)
-    const to = ids.indexOf(targetId)
-    if (from === -1 || to === -1) return
-    ids.splice(from, 1)
-    ids.splice(to, 0, dragId)
-    onReorder(ids)
-    setDragId(null)
-    setOverId(null)
-  }
-
-  function moveMetric(id: string, dir: -1 | 1) {
-    const ids = metrics.map((m) => m.id)
-    const from = ids.indexOf(id)
-    const to = from + dir
-    if (from < 0 || to < 0 || to >= ids.length) return
-    ;[ids[from], ids[to]] = [ids[to], ids[from]]
-    onReorder(ids)
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = metricIds.indexOf(String(active.id))
+    const newIndex = metricIds.indexOf(String(over.id))
+    if (oldIndex < 0 || newIndex < 0) return
+    onReorder(arrayMove(metricIds, oldIndex, newIndex))
   }
 
   if (metrics.length === 0 && !adding) {
@@ -95,47 +151,25 @@ export function CountView({
 
   return (
     <div className="flex flex-1 flex-col gap-3 p-3 pb-4">
-      <div className="grid grid-cols-2 gap-3 auto-rows-fr">
-        {metrics.map((m, index) => (
-          <MetricCard
-            key={m.id}
-            metric={m}
-            todayCount={todayCount(events, m.id)}
-            onIncrement={() => onIncrement(m.id)}
-            onDecrement={() => onDecrement(m.id)}
-            onUndo={() => onUndo(m.id)}
-            onSetCount={(value) => onSetCount(m.id, value)}
-            onRename={(name) => onRenameMetric(m.id, name)}
-            onDelete={() => onDeleteMetric(m.id)}
-            onMoveUp={() => moveMetric(m.id, -1)}
-            onMoveDown={() => moveMetric(m.id, 1)}
-            canMoveUp={index > 0}
-            canMoveDown={index < metrics.length - 1}
-            isDragging={dragId === m.id}
-            isDragOver={overId === m.id && dragId !== m.id}
-            dragHandleProps={{
-              draggable: true,
-              onDragStart: (e) => {
-                setDragId(m.id)
-                e.dataTransfer.effectAllowed = 'move'
-                e.dataTransfer.setData('text/plain', m.id)
-              },
-              onDragOver: (e) => {
-                e.preventDefault()
-                setOverId(m.id)
-              },
-              onDrop: (e) => {
-                e.preventDefault()
-                handleDrop(m.id)
-              },
-              onDragEnd: () => {
-                setDragId(null)
-                setOverId(null)
-              },
-            }}
-          />
-        ))}
-      </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={metricIds} strategy={rectSortingStrategy}>
+          <div className="grid grid-cols-2 gap-3 auto-rows-fr">
+            {metrics.map((m) => (
+              <SortableMetricCard
+                key={m.id}
+                metric={m}
+                events={events}
+                onIncrement={() => onIncrement(m.id)}
+                onDecrement={() => onDecrement(m.id)}
+                onUndo={() => onUndo(m.id)}
+                onSetCount={(value) => onSetCount(m.id, value)}
+                onRename={(name) => onRenameMetric(m.id, name)}
+                onDelete={() => onDeleteMetric(m.id)}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {adding ? (
         <form
