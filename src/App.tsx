@@ -7,6 +7,7 @@ import { AuthBar } from './components/AuthBar'
 import { useAuth } from './hooks/useAuth'
 import { useStore } from './hooks/useStore'
 import type { ChartPeriod, ViewTab } from './types'
+import { startOfDay } from './utils'
 
 const ChartsView = lazy(() =>
   import('./components/ChartsView').then((m) => ({ default: m.ChartsView })),
@@ -18,6 +19,7 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [tab, setTab] = useState<ViewTab>('count')
   const [period, setPeriod] = useState<ChartPeriod>('7d')
+  const [selectedDayStart, setSelectedDayStart] = useState(() => startOfDay())
 
   const { activeFunnel, data } = store
 
@@ -107,10 +109,14 @@ export default function App() {
                 <CountView
                   funnel={activeFunnel}
                   events={data.events}
-                  onIncrement={store.increment}
-                  onDecrement={store.decrement}
-                  onUndo={store.undoLast}
-                  onSetCount={store.setTodayCount}
+                  selectedDayStart={selectedDayStart}
+                  onSelectedDayChange={setSelectedDayStart}
+                  onIncrement={(metricId) => store.increment(metricId, selectedDayStart)}
+                  onDecrement={(metricId) => store.decrement(metricId, selectedDayStart)}
+                  onUndo={(metricId) => store.undoLast(metricId, selectedDayStart)}
+                  onSetCount={(metricId, value) =>
+                    store.setDayCount(metricId, value, selectedDayStart)
+                  }
                   onRenameMetric={(metricId, name) =>
                     store.renameMetric(activeFunnel.id, metricId, name)
                   }

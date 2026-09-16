@@ -4,7 +4,12 @@ import { v4 as uuid } from 'uuid'
 import { db } from '../lib/firebase'
 import { clearLocalData, emptyData, loadData, saveData } from '../storage'
 import type { AppData, CloudAppData, Event, Funnel, Metric } from '../types'
-import { sortedMetrics, todayCount } from '../utils'
+import {
+  dayCount,
+  eventTimestampForDay,
+  sortedMetrics,
+  startOfDay,
+} from '../utils'
 
 const WRITE_DEBOUNCE_MS = 300
 
@@ -70,6 +75,11 @@ export function useStore(uid: string | null) {
       return
     }
 
+    // Fresh handshake: never treat blank local updatedAt as "already synced"
+    syncedAt.current = 0
+    pendingWriteAt.current = null
+    migratedForUid.current = null
+
     setSyncStatus('syncing')
     setSyncError(null)
     const ref = doc(db, 'users', uid)
@@ -80,6 +90,7 @@ export function useStore(uid: string | null) {
         void (async () => {
           const remote = snap.exists() ? (snap.data() as CloudAppData) : undefined
 
+          // First snapshot for this uid: hydrate from cloud if it has data
           if (migratedForUid.current !== uid) {
             migratedForUid.current = uid
             if (isCloudEmpty(remote)) {
@@ -93,6 +104,7 @@ export function useStore(uid: string | null) {
                 setData(payload)
                 saveData(payload)
                 setSyncStatus('synced')
+                setSyncError(null)
                 queueMicrotask(() => {
                   applyingRemote.current = false
                 })
@@ -102,6 +114,20 @@ export function useStore(uid: string | null) {
               }
               return
             }
+
+            // Cloud has funnels/events: always apply (ignore local LWW for first hydrate)
+            applyingRemote.current = true
+            const next = fromCloud(remote!)
+            syncedAt.current = next.updatedAt ?? remote!.updatedAt ?? 0
+            pendingWriteAt.current = null
+            setData(next)
+            saveData(next)
+            setSyncStatus('synced')
+            setSyncError(null)
+            queueMicrotask(() => {
+              applyingRemote.current = false
+            })
+            return
           }
 
           if (!remote || isCloudEmpty(remote)) {
@@ -127,6 +153,7 @@ export function useStore(uid: string | null) {
           setData(next)
           saveData(next)
           setSyncStatus('synced')
+          setSyncError(null)
           queueMicrotask(() => {
             applyingRemote.current = false
           })
@@ -324,11 +351,11 @@ export function useStore(uid: string | null) {
   )
 
   const increment = useCallback(
-    (metricId: string) => {
+    (metricId: string, dayStart: number = startOfDay()) => {
       const event: Event = {
         id: uuid(),
         metricId,
-        timestamp: Date.now(),
+        timestamp: eventTimestampForDay(dayStart),
         delta: 1,
       }
       mutate((d) => ({ ...d, events: [...d.events, event] }))
@@ -337,13 +364,13 @@ export function useStore(uid: string | null) {
   )
 
   const decrement = useCallback(
-    (metricId: string) => {
+    (metricId: string, dayStart: number = startOfDay()) => {
       mutate((d) => {
-        if (todayCount(d.events, metricId) <= 0) return d
+        if (dayCount(d.events, metricId, dayStart) <= 0) return d
         const event: Event = {
           id: uuid(),
           metricId,
-          timestamp: Date.now(),
+          timestamp: eventTimestampForDay(dayStart),
           delta: -1,
         }
         return { ...d, events: [...d.events, event] }
@@ -353,11 +380,13 @@ export function useStore(uid: string | null) {
   )
 
   const undoLast = useCallback(
-    (metricId: string) => {
+    (metricId: string, dayStart: number = startOfDay()) => {
       mutate((d) => {
+        const dayEnd = dayStart + 86400000
         let lastIdx = -1
         for (let i = d.events.length - 1; i >= 0; i--) {
-          if (d.events[i].metricId === metricId) {
+          const e = d.events[i]
+          if (e.metricId === metricId && e.timestamp >= dayStart && e.timestamp < dayEnd) {
             lastIdx = i
             break
           }
@@ -371,18 +400,18 @@ export function useStore(uid: string | null) {
     [mutate],
   )
 
-  const setTodayCount = useCallback(
-    (metricId: string, next: number) => {
+  const setDayCount = useCallback(
+    (metricId: string, next: number, dayStart: number = startOfDay()) => {
       const value = Math.max(0, Math.floor(Number(next)))
       if (!Number.isFinite(value)) return
       mutate((d) => {
-        const current = todayCount(d.events, metricId)
+        const current = dayCount(d.events, metricId, dayStart)
         const delta = value - current
         if (delta === 0) return d
         const event: Event = {
           id: uuid(),
           metricId,
-          timestamp: Date.now(),
+          timestamp: eventTimestampForDay(dayStart),
           delta,
         }
         return { ...d, events: [...d.events, event] }
@@ -390,7 +419,6 @@ export function useStore(uid: string | null) {
     },
     [mutate],
   )
-
 
   const resetAll = useCallback(async () => {
     const blank = stamp(emptyData())
@@ -434,6 +462,6 @@ export function useStore(uid: string | null) {
     increment,
     decrement,
     undoLast,
-    setTodayCount,
+    setDayCount,
   }
 }

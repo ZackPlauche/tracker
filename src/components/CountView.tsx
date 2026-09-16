@@ -16,12 +16,15 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { Event, Funnel, Metric } from '../types'
-import { sortedMetrics, todayCount } from '../utils'
+import { dayCount, sortedMetrics } from '../utils'
+import { DayScroller } from './DayScroller'
 import { MetricCard } from './MetricCard'
 
 type Props = {
   funnel: Funnel
   events: Event[]
+  selectedDayStart: number
+  onSelectedDayChange: (dayStart: number) => void
   onIncrement: (metricId: string) => void
   onDecrement: (metricId: string) => void
   onUndo: (metricId: string) => void
@@ -34,7 +37,7 @@ type Props = {
 
 function SortableMetricCard({
   metric,
-  events,
+  count,
   onIncrement,
   onDecrement,
   onUndo,
@@ -43,7 +46,7 @@ function SortableMetricCard({
   onDelete,
 }: {
   metric: Metric
-  events: Event[]
+  count: number
   onIncrement: () => void
   onDecrement: () => void
   onUndo: () => void
@@ -64,7 +67,7 @@ function SortableMetricCard({
     <div ref={setNodeRef} style={style} className="h-full">
       <MetricCard
         metric={metric}
-        todayCount={todayCount(events, metric.id)}
+        todayCount={count}
         onIncrement={onIncrement}
         onDecrement={onDecrement}
         onUndo={onUndo}
@@ -84,6 +87,8 @@ function SortableMetricCard({
 export function CountView({
   funnel,
   events,
+  selectedDayStart,
+  onSelectedDayChange,
   onIncrement,
   onDecrement,
   onUndo,
@@ -123,34 +128,43 @@ export function CountView({
     onReorder(arrayMove(metricIds, oldIndex, newIndex))
   }
 
+  const dayScroller = (
+    <DayScroller selectedDayStart={selectedDayStart} onChange={onSelectedDayChange} />
+  )
+
   if (metrics.length === 0 && !adding) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-card text-accent">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <rect x="3" y="3" width="7" height="7" rx="1.5" />
-            <rect x="14" y="3" width="7" height="7" rx="1.5" />
-            <rect x="3" y="14" width="7" height="7" rx="1.5" />
-            <rect x="14" y="14" width="7" height="7" rx="1.5" />
-          </svg>
+      <div className="flex flex-1 flex-col gap-3 p-3 pb-4">
+        {dayScroller}
+        <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-card text-accent">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <rect x="3" y="3" width="7" height="7" rx="1.5" />
+              <rect x="14" y="3" width="7" height="7" rx="1.5" />
+              <rect x="3" y="14" width="7" height="7" rx="1.5" />
+              <rect x="14" y="14" width="7" height="7" rx="1.5" />
+            </svg>
+          </div>
+          <h2 className="mb-1 text-lg font-semibold text-text">No metrics yet</h2>
+          <p className="mb-6 max-w-xs text-sm text-text-dim">
+            Add steps in your funnel — like Opens, Numbers, or Walk-ins — then tap +1 as you go.
+          </p>
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="tap-feedback rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-white hover:bg-accent-hover"
+          >
+            Add first metric
+          </button>
         </div>
-        <h2 className="mb-1 text-lg font-semibold text-text">No metrics yet</h2>
-        <p className="mb-6 max-w-xs text-sm text-text-dim">
-          Add steps in your funnel — like Opens, Numbers, or Walk-ins — then tap +1 as you go.
-        </p>
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          className="tap-feedback rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-white hover:bg-accent-hover"
-        >
-          Add first metric
-        </button>
       </div>
     )
   }
 
   return (
     <div className="flex flex-1 flex-col gap-3 p-3 pb-4">
+      {dayScroller}
+
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={metricIds} strategy={rectSortingStrategy}>
           <div className="grid grid-cols-2 gap-3 auto-rows-fr">
@@ -158,7 +172,7 @@ export function CountView({
               <SortableMetricCard
                 key={m.id}
                 metric={m}
-                events={events}
+                count={dayCount(events, m.id, selectedDayStart)}
                 onIncrement={() => onIncrement(m.id)}
                 onDecrement={() => onDecrement(m.id)}
                 onUndo={() => onUndo(m.id)}

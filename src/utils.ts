@@ -37,8 +37,30 @@ export function sumEvents(
   return total
 }
 
+export function dayCount(events: Event[], metricId: string, dayStart: number): number {
+  return sumEvents(events, metricId, dayStart, dayStart + 86400000)
+}
+
 export function todayCount(events: Event[], metricId: string): number {
-  return sumEvents(events, metricId, startOfDay())
+  return dayCount(events, metricId, startOfDay())
+}
+
+/** Timestamp to stamp new events for a selected day (noon for past days, now for today). */
+export function eventTimestampForDay(dayStart: number): number {
+  const today = startOfDay()
+  if (dayStart === today) return Date.now()
+  return dayStart + 12 * 60 * 60 * 1000
+}
+
+export function selectedDayLabel(dayStart: number): string {
+  const today = startOfDay()
+  if (dayStart === today) return 'Today'
+  if (dayStart === today - 86400000) return 'Yesterday'
+  return new Date(dayStart).toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  })
 }
 
 export function formatDayLabel(ts: number): string {
