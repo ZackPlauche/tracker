@@ -362,7 +362,7 @@ export function SideMenu({
             )}
             <div className="mb-1 mt-3">
               <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wide text-text-dim">
-                Box color
+                Default color
               </p>
               <ColorSwatches value={globalColor} onPick={onSetAccent} />
             </div>

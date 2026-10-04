@@ -120,6 +120,19 @@ export function metricKind(metric: Metric): MetricKind {
   return metric.kind === 'in' || metric.kind === 'out' ? metric.kind : 'count'
 }
 
+
+export function lightenHex(hex: string, amount = 0.28): string {
+  const raw = hex.replace('#', '')
+  const full = raw.length === 3 ? raw.split('').map((c) => c + c).join('') : raw
+  const n = Number.parseInt(full, 16)
+  if (!Number.isFinite(n) || full.length !== 6) return hex
+  const mix = (c: number) => Math.round(c + (255 - c) * amount)
+  const r = mix((n >> 16) & 255)
+  const g = mix((n >> 8) & 255)
+  const b = mix(n & 255)
+  return `#${[r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('')}`
+}
+
 export function resolveAccent(funnelColor?: string, globalColor?: string): string {
   return funnelColor || globalColor || DEFAULT_ACCENT
 }

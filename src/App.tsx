@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { SideMenu } from './components/SideMenu'
 import { BottomTabs } from './components/BottomTabs'
 import { CountView } from './components/CountView'
@@ -7,7 +7,7 @@ import { AuthBar } from './components/AuthBar'
 import { useAuth } from './hooks/useAuth'
 import { useStore } from './hooks/useStore'
 import type { ChartPeriod, ViewTab } from './types'
-import { startOfDay } from './utils'
+import { DEFAULT_ACCENT, lightenHex, startOfDay } from './utils'
 
 const ChartsView = lazy(() =>
   import('./components/ChartsView').then((m) => ({ default: m.ChartsView })),
@@ -27,6 +27,15 @@ export default function App() {
   const [selectedDayStart, setSelectedDayStart] = useState(() => startOfDay())
 
   const { activeFunnel, data } = store
+
+  useEffect(() => {
+    const color = data.accentColor || DEFAULT_ACCENT
+    const root = document.documentElement
+    root.style.setProperty('--color-accent', color)
+    root.style.setProperty('--color-accent-hover', lightenHex(color))
+    root.style.setProperty('--color-accent-muted', color)
+  }, [data.accentColor])
+
 
   return (
     <div className="flex h-full min-h-dvh bg-surface text-text">
