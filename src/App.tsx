@@ -41,6 +41,9 @@ export default function App() {
         onDelete={store.deleteFunnel}
         onArchive={store.archiveFunnel}
         onRestore={store.restoreFunnel}
+        accentColor={data.accentColor}
+        onSetAccent={store.setAccentColor}
+        onSetFunnelColor={store.setFunnelColor}
         onReset={() => {
           void store.resetAll()
         }}
@@ -130,7 +133,12 @@ export default function App() {
                       store.renameMetric(activeFunnel.id, metricId, name)
                     }
                     onDeleteMetric={(metricId) => store.deleteMetric(activeFunnel.id, metricId)}
-                    onCreateMetric={(name) => store.createMetric(activeFunnel.id, name)}
+                    onCreateMetric={(name, kind) => store.createMetric(activeFunnel.id, name, kind)}
+                    onAddAmount={(metricId, amount, note) =>
+                      store.addAmount(metricId, amount, note, selectedDayStart)
+                    }
+                    onRemoveEvent={store.removeEvent}
+                    accentColor={data.accentColor}
                     onReorder={(ids) => store.reorderMetrics(activeFunnel.id, ids)}
                   />
                 </div>

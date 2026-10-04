@@ -1,4 +1,4 @@
-import type { Event, Metric } from './types'
+import type { Event, Metric, MetricKind } from './types'
 import type { ChartPeriod } from './types'
 
 export function startOfDay(ts: number = Date.now()): number {
@@ -100,4 +100,59 @@ export function getDayRange(from: number | null, events: Event[]): number[] {
     cur += 86400000
   }
   return days
+}
+
+export const DEFAULT_ACCENT = '#6366f1'
+
+/** Preset box colors. First swatch is the original indigo. */
+export const ACCENT_SWATCHES = [
+  '#6366f1',
+  '#22c55e',
+  '#14b8a6',
+  '#0ea5e9',
+  '#a78bfa',
+  '#ec4899',
+  '#f59e0b',
+  '#ef4444',
+] as const
+
+export function metricKind(metric: Metric): MetricKind {
+  return metric.kind === 'in' || metric.kind === 'out' ? metric.kind : 'count'
+}
+
+export function resolveAccent(funnelColor?: string, globalColor?: string): string {
+  return funnelColor || globalColor || DEFAULT_ACCENT
+}
+
+export function dayEntries(events: Event[], metricId: string, dayStart: number): Event[] {
+  const end = dayStart + 86400000
+  return events.filter(
+    (e) => e.metricId === metricId && e.timestamp >= dayStart && e.timestamp < end,
+  )
+}
+
+export function formatAmount(n: number): string {
+  const abs = Math.abs(n)
+  const text = abs.toLocaleString(undefined, {
+    minimumFractionDigits: Number.isInteger(abs) ? 0 : 2,
+    maximumFractionDigits: 2,
+  })
+  return n < 0 ? `−${text}` : text
+}
+
+export function moneyDayTotals(
+  metrics: Metric[],
+  events: Event[],
+  dayStart: number,
+): { moneyIn: number; moneyOut: number; net: number } {
+  let moneyIn = 0
+  let moneyOut = 0
+  for (const m of metrics) {
+    const kind = metricKind(m)
+    if (kind === 'count') continue
+    const sum = dayCount(events, m.id, dayStart)
+    if (kind === 'in') moneyIn += sum
+    else moneyOut += -sum
+  }
+  return { moneyIn, moneyOut, net: moneyIn - moneyOut }
 }

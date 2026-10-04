@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import type { Funnel } from '../types'
+import { DEFAULT_ACCENT } from '../utils'
+import { ColorSwatches } from './ColorSwatches'
 
 type Props = {
   open: boolean
@@ -12,6 +14,9 @@ type Props = {
   onDelete: (id: string) => void
   onArchive: (id: string) => void
   onRestore: (id: string) => void
+  accentColor?: string
+  onSetAccent: (color: string) => void
+  onSetFunnelColor: (id: string, color: string | null) => void
   onReset?: () => void
 }
 
@@ -26,6 +31,9 @@ export function SideMenu({
   onDelete,
   onArchive,
   onRestore,
+  accentColor,
+  onSetAccent,
+  onSetFunnelColor,
   onReset,
 }: Props) {
   const [creating, setCreating] = useState(false)
@@ -33,6 +41,8 @@ export function SideMenu({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [archiveOpen, setArchiveOpen] = useState(false)
+  const [colorFunnelId, setColorFunnelId] = useState<string | null>(null)
+  const globalColor = accentColor || DEFAULT_ACCENT
 
   const active = funnels.filter((f) => !f.archived)
   const archived = funnels.filter((f) => f.archived)
@@ -140,7 +150,7 @@ export function SideMenu({
             {active.map((f) => (
               <div
                 key={f.id}
-                className={`group flex items-center gap-1 rounded-xl ${
+                className={`group rounded-xl ${
                   f.id === activeFunnelId
                     ? 'bg-accent/20 ring-1 ring-accent/40'
                     : 'hover:bg-surface-card'
@@ -163,10 +173,18 @@ export function SideMenu({
                     />
                   </form>
                 ) : (
-                  <>
+                  <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      className="tap-feedback min-w-0 flex-1 truncate px-3 py-3 text-left text-sm font-medium text-text"
+                      className="tap-feedback ml-2 h-6 w-6 shrink-0 rounded-full ring-1 ring-white/25"
+                      style={{ backgroundColor: f.color || globalColor }}
+                      aria-label={`Color for ${f.name}`}
+                      aria-expanded={colorFunnelId === f.id}
+                      onClick={() => setColorFunnelId((id) => (id === f.id ? null : f.id))}
+                    />
+                    <button
+                      type="button"
+                      className="tap-feedback min-w-0 flex-1 truncate px-2 py-3 text-left text-sm font-medium text-text"
                       onClick={() => selectFunnel(f.id)}
                     >
                       {f.name}
@@ -208,7 +226,25 @@ export function SideMenu({
                         <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
                       </svg>
                     </button>
-                  </>
+                  </div>
+                )}
+                {colorFunnelId === f.id && editingId !== f.id && (
+                  <div className="px-2 pb-2">
+                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-dim">
+                      This funnel
+                    </p>
+                    <ColorSwatches
+                      value={f.color}
+                      onPick={(color) => {
+                        onSetFunnelColor(f.id, color)
+                        setColorFunnelId(null)
+                      }}
+                      onClear={() => {
+                        onSetFunnelColor(f.id, null)
+                        setColorFunnelId(null)
+                      }}
+                    />
+                  </div>
                 )}
               </div>
             ))}
@@ -324,6 +360,12 @@ export function SideMenu({
                 New Funnel
               </button>
             )}
+            <div className="mb-1 mt-3">
+              <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wide text-text-dim">
+                Box color
+              </p>
+              <ColorSwatches value={globalColor} onPick={onSetAccent} />
+            </div>
             {onReset && (
               <button
                 type="button"

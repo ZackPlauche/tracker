@@ -1,14 +1,25 @@
 import { useState, type CSSProperties, type HTMLAttributes } from 'react'
 import { Icon } from '@iconify/react'
 import type { Metric } from '../types'
+import { formatAmount, metricKind } from '../utils'
+
+export type DayEntry = {
+  id: string
+  delta: number
+  note?: string
+}
 
 type Props = {
   metric: Metric
   todayCount: number
+  accent: string
+  entries: DayEntry[]
   onIncrement: () => void
   onDecrement: () => void
   onUndo: () => void
   onSetCount: (value: number) => void
+  onAddAmount: (amount: number, note: string) => void
+  onRemoveEntry: (eventId: string) => void
   onRename: (name: string) => void
   onDelete: () => void
   dragHandleProps?: HTMLAttributes<HTMLButtonElement>
@@ -19,20 +30,29 @@ type Props = {
 export function MetricCard({
   metric,
   todayCount,
+  accent,
+  entries,
   onIncrement,
   onDecrement,
   onUndo,
   onSetCount,
+  onAddAmount,
+  onRemoveEntry,
   onRename,
   onDelete,
   dragHandleProps,
   style,
   isDragging,
 }: Props) {
+  const kind = metricKind(metric)
+  const isAmount = kind === 'in' || kind === 'out'
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(metric.name)
   const [editingCount, setEditingCount] = useState(false)
   const [countDraft, setCountDraft] = useState(String(Math.max(0, todayCount)))
+  const [addingAmount, setAddingAmount] = useState(false)
+  const [amountDraft, setAmountDraft] = useState('')
+  const [noteDraft, setNoteDraft] = useState('')
 
   function commitRename() {
     if (name.trim()) onRename(name)
@@ -50,6 +70,24 @@ export function MetricCard({
     if (Number.isFinite(parsed)) onSetCount(parsed)
     setEditingCount(false)
   }
+
+  function openAmount() {
+    setAmountDraft('')
+    setNoteDraft('')
+    setAddingAmount(true)
+  }
+
+  function commitAmount() {
+    const parsed = Number.parseFloat(amountDraft.replace(',', '.'))
+    if (!Number.isFinite(parsed) || parsed <= 0) return
+    onAddAmount(parsed, noteDraft.trim())
+    setAddingAmount(false)
+    setAmountDraft('')
+    setNoteDraft('')
+  }
+
+  const amountTotal = entries.reduce((sum, e) => sum + e.delta, 0)
+  const amountLabel = kind === 'out' ? 'Cash out' : 'Cash in'
 
   return (
     <div
@@ -120,7 +158,66 @@ export function MetricCard({
         </button>
       </div>
 
-      {editingCount ? (
+      {isAmount ? (
+        addingAmount ? (
+          <form
+            className="mx-3 mb-2 flex min-h-[7.5rem] flex-1 flex-col justify-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault()
+              commitAmount()
+            }}
+          >
+            <input
+              autoFocus
+              inputMode="decimal"
+              value={amountDraft}
+              onChange={(e) => setAmountDraft(e.target.value.replace(/[^0-9.,]/g, ''))}
+              placeholder="Amount"
+              className="w-full rounded-xl bg-surface px-3 py-3 text-center text-3xl font-bold tabular-nums text-text outline-none ring-2 ring-accent"
+              aria-label={`Amount for ${metric.name}`}
+            />
+            <input
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              placeholder="Note (optional)"
+              maxLength={80}
+              className="w-full rounded-xl bg-surface px-3 py-2 text-sm text-text outline-none ring-1 ring-border focus:ring-accent"
+              aria-label={`Note for ${metric.name}`}
+            />
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                className="tap-feedback flex-1 rounded-xl py-2.5 text-sm font-semibold text-white hover:brightness-110"
+                style={{ backgroundColor: accent }}
+              >
+                Add
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddingAmount(false)}
+                className="tap-feedback rounded-xl bg-surface-hover px-4 py-2.5 text-sm text-text-muted"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <button
+            type="button"
+            onClick={openAmount}
+            className="tap-feedback mx-3 mb-2 flex min-h-[7.5rem] flex-1 flex-col items-center justify-center gap-1 rounded-xl text-white shadow-md transition-[filter] hover:brightness-110 active:scale-[0.97]"
+            style={{ backgroundColor: accent }}
+            aria-label={`Add ${amountLabel.toLowerCase()} to ${metric.name}. Day total ${formatAmount(Math.abs(amountTotal))}`}
+          >
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-white/80">
+              {amountLabel}
+            </span>
+            <span className="text-4xl font-bold tabular-nums leading-none tracking-tight">
+              {formatAmount(Math.abs(amountTotal))}
+            </span>
+          </button>
+        )
+      ) : editingCount ? (
         <form
           className="mx-3 mb-2 flex min-h-[7.5rem] flex-1 flex-col justify-center gap-2"
           onSubmit={(e) => {
@@ -157,7 +254,8 @@ export function MetricCard({
         <button
           type="button"
           onClick={onIncrement}
-          className="tap-feedback mx-3 mb-2 flex min-h-[7.5rem] flex-1 items-center justify-center rounded-xl bg-accent text-white shadow-md shadow-accent/25 transition-colors hover:bg-accent-hover active:scale-[0.97]"
+          className="tap-feedback mx-3 mb-2 flex min-h-[7.5rem] flex-1 items-center justify-center rounded-xl text-white shadow-md transition-[filter] hover:brightness-110 active:scale-[0.97]"
+          style={{ backgroundColor: accent }}
           aria-label={`Add 1 to ${metric.name}. Current count ${Math.max(0, todayCount)}`}
         >
           <span className="text-5xl font-bold tabular-nums leading-none tracking-tight">
@@ -166,35 +264,65 @@ export function MetricCard({
         </button>
       )}
 
-      <div className="flex gap-2 px-3 pb-3">
-        <button
-          type="button"
-          onClick={onDecrement}
-          disabled={todayCount <= 0 || editingCount}
-          className="tap-feedback flex h-11 flex-1 items-center justify-center rounded-xl bg-surface-hover text-sm font-medium text-text-muted hover:bg-border hover:text-text disabled:opacity-30 disabled:hover:bg-surface-hover disabled:hover:text-text-muted"
-          aria-label={`Subtract 1 from ${metric.name}`}
-        >
-          −1
-        </button>
-        <button
-          type="button"
-          onClick={onUndo}
-          disabled={editingCount}
-          className="tap-feedback flex h-11 flex-1 items-center justify-center rounded-xl bg-surface-hover text-text-muted hover:bg-border hover:text-text disabled:opacity-30"
-          aria-label={`Undo last for ${metric.name}`}
-        >
-          <Icon icon="ph:arrow-counter-clockwise" width={18} height={18} aria-hidden />
-        </button>
-        <button
-          type="button"
-          onClick={openCountEdit}
-          disabled={editingCount}
-          className="tap-feedback flex h-11 flex-1 items-center justify-center rounded-xl bg-surface-hover text-text-muted hover:bg-border hover:text-text disabled:opacity-30"
-          aria-label={`Edit count for ${metric.name}`}
-        >
-          <Icon icon="mdi:pencil" width={18} height={18} aria-hidden />
-        </button>
-      </div>
+      {isAmount ? (
+        <ul className="max-h-32 space-y-1 overflow-y-auto px-3 pb-3">
+          {entries.length === 0 ? (
+            <li className="px-1 py-1 text-center text-xs text-text-dim">No entries yet</li>
+          ) : (
+            entries.map((entry) => (
+              <li
+                key={entry.id}
+                className="flex items-center gap-1.5 rounded-lg bg-surface-hover px-2 py-1.5 text-xs"
+              >
+                <span className="shrink-0 font-semibold tabular-nums text-text">
+                  {formatAmount(Math.abs(entry.delta))}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-text-muted">
+                  {entry.note || ''}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onRemoveEntry(entry.id)}
+                  className="tap-feedback flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-text-dim hover:bg-danger/15 hover:text-danger"
+                  aria-label={`Remove entry${entry.note ? ` ${entry.note}` : ''}`}
+                >
+                  ×
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      ) : (
+        <div className="flex gap-2 px-3 pb-3">
+          <button
+            type="button"
+            onClick={onDecrement}
+            disabled={todayCount <= 0 || editingCount}
+            className="tap-feedback flex h-11 flex-1 items-center justify-center rounded-xl bg-surface-hover text-sm font-medium text-text-muted hover:bg-border hover:text-text disabled:opacity-30 disabled:hover:bg-surface-hover disabled:hover:text-text-muted"
+            aria-label={`Subtract 1 from ${metric.name}`}
+          >
+            −1
+          </button>
+          <button
+            type="button"
+            onClick={onUndo}
+            disabled={editingCount}
+            className="tap-feedback flex h-11 flex-1 items-center justify-center rounded-xl bg-surface-hover text-text-muted hover:bg-border hover:text-text disabled:opacity-30"
+            aria-label={`Undo last for ${metric.name}`}
+          >
+            <Icon icon="ph:arrow-counter-clockwise" width={18} height={18} aria-hidden />
+          </button>
+          <button
+            type="button"
+            onClick={openCountEdit}
+            disabled={editingCount}
+            className="tap-feedback flex h-11 flex-1 items-center justify-center rounded-xl bg-surface-hover text-text-muted hover:bg-border hover:text-text disabled:opacity-30"
+            aria-label={`Edit count for ${metric.name}`}
+          >
+            <Icon icon="mdi:pencil" width={18} height={18} aria-hidden />
+          </button>
+        </div>
+      )}
     </div>
   )
 }

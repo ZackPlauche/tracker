@@ -15,8 +15,8 @@ import {
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import type { Event, Funnel, Metric } from '../types'
-import { dayCount, sortedMetrics } from '../utils'
+import type { Event, Funnel, Metric, MetricKind } from '../types'
+import { dayCount, dayEntries, formatAmount, metricKind, moneyDayTotals, resolveAccent, sortedMetrics } from '../utils'
 import { DayScroller } from './DayScroller'
 import { MetricCard } from './MetricCard'
 
@@ -31,26 +31,37 @@ type Props = {
   onSetCount: (metricId: string, value: number) => void
   onRenameMetric: (metricId: string, name: string) => void
   onDeleteMetric: (metricId: string) => void
-  onCreateMetric: (name: string) => void
+  onCreateMetric: (name: string, kind: MetricKind) => void
+  onAddAmount: (metricId: string, amount: number, note: string) => void
+  onRemoveEvent: (eventId: string) => void
+  accentColor?: string
   onReorder: (orderedIds: string[]) => void
 }
 
 function SortableMetricCard({
   metric,
   count,
+  accent,
+  entries,
   onIncrement,
   onDecrement,
   onUndo,
   onSetCount,
+  onAddAmount,
+  onRemoveEntry,
   onRename,
   onDelete,
 }: {
   metric: Metric
   count: number
+  accent: string
+  entries: { id: string; delta: number; note?: string }[]
   onIncrement: () => void
   onDecrement: () => void
   onUndo: () => void
   onSetCount: (value: number) => void
+  onAddAmount: (amount: number, note: string) => void
+  onRemoveEntry: (eventId: string) => void
   onRename: (name: string) => void
   onDelete: () => void
 }) {
@@ -68,10 +79,14 @@ function SortableMetricCard({
       <MetricCard
         metric={metric}
         todayCount={count}
+        accent={accent}
+        entries={entries}
         onIncrement={onIncrement}
         onDecrement={onDecrement}
         onUndo={onUndo}
         onSetCount={onSetCount}
+        onAddAmount={onAddAmount}
+        onRemoveEntry={onRemoveEntry}
         onRename={onRename}
         onDelete={onDelete}
         isDragging={isDragging}
@@ -96,12 +111,19 @@ export function CountView({
   onRenameMetric,
   onDeleteMetric,
   onCreateMetric,
+  onAddAmount,
+  onRemoveEvent,
+  accentColor,
   onReorder,
 }: Props) {
   const metrics = sortedMetrics(funnel.metrics)
   const metricIds = useMemo(() => metrics.map((m) => m.id), [metrics])
+  const accent = resolveAccent(funnel.color, accentColor)
+  const hasMoney = metrics.some((m) => metricKind(m) !== 'count')
+  const totals = moneyDayTotals(metrics, events, selectedDayStart)
   const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
+  const [newKind, setNewKind] = useState<MetricKind>('count')
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -114,10 +136,87 @@ export function CountView({
 
   function handleCreate() {
     if (!newName.trim()) return
-    onCreateMetric(newName)
+    onCreateMetric(newName, newKind)
     setNewName('')
+    setNewKind('count')
     setAdding(false)
   }
+
+  const moneySummary = hasMoney ? (
+    <div className="grid grid-cols-3 gap-2 rounded-2xl border border-border-subtle bg-surface-card px-2 py-2.5 text-center">
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-text-dim">In</p>
+        <p className="text-sm font-bold tabular-nums text-success">{formatAmount(totals.moneyIn)}</p>
+      </div>
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-text-dim">Out</p>
+        <p className="text-sm font-bold tabular-nums text-danger">{formatAmount(totals.moneyOut)}</p>
+      </div>
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-text-dim">Net</p>
+        <p className={`text-sm font-bold tabular-nums ${totals.net < 0 ? 'text-danger' : 'text-text'}`}>
+          {formatAmount(totals.net)}
+        </p>
+      </div>
+    </div>
+  ) : null
+
+  const addForm = (
+    <form
+      className="space-y-2 rounded-2xl border border-border bg-surface-card p-3"
+      onSubmit={(e) => {
+        e.preventDefault()
+        handleCreate()
+      }}
+    >
+      <input
+        autoFocus
+        value={newName}
+        onChange={(e) => setNewName(e.target.value)}
+        placeholder="Metric name"
+        className="w-full rounded-xl bg-surface px-3 py-3 text-sm text-text outline-none ring-1 ring-border focus:ring-accent"
+      />
+      <div className="grid grid-cols-3 gap-1.5">
+        {(
+          [
+            ['count', 'Count'],
+            ['in', 'Cash in'],
+            ['out', 'Cash out'],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setNewKind(id)}
+            className={`tap-feedback rounded-xl px-2 py-2 text-xs font-semibold ${
+              newKind === id ? 'bg-accent text-white' : 'bg-surface text-text-muted'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          className="tap-feedback flex-1 rounded-xl bg-accent py-2.5 text-sm font-semibold text-white"
+        >
+          Add
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setAdding(false)
+            setNewName('')
+            setNewKind('count')
+          }}
+          className="tap-feedback rounded-xl bg-surface-hover px-4 py-2.5 text-sm text-text-muted"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  )
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
@@ -136,6 +235,9 @@ export function CountView({
     return (
       <div className="flex flex-1 flex-col gap-3 p-3 pb-4">
         {dayScroller}
+        {adding ? (
+          addForm
+        ) : (
         <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-card text-accent">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -157,6 +259,7 @@ export function CountView({
             Add first metric
           </button>
         </div>
+        )}
       </div>
     )
   }
@@ -164,6 +267,7 @@ export function CountView({
   return (
     <div className="flex flex-1 flex-col gap-3 p-3 pb-4">
       {dayScroller}
+      {moneySummary}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={metricIds} strategy={rectSortingStrategy}>
@@ -173,10 +277,18 @@ export function CountView({
                 key={m.id}
                 metric={m}
                 count={dayCount(events, m.id, selectedDayStart)}
+                accent={accent}
+                entries={dayEntries(events, m.id, selectedDayStart).map((e) => ({
+                  id: e.id,
+                  delta: e.delta,
+                  note: e.note,
+                }))}
                 onIncrement={() => onIncrement(m.id)}
                 onDecrement={() => onDecrement(m.id)}
                 onUndo={() => onUndo(m.id)}
                 onSetCount={(value) => onSetCount(m.id, value)}
+                onAddAmount={(amount, note) => onAddAmount(m.id, amount, note)}
+                onRemoveEntry={onRemoveEvent}
                 onRename={(name) => onRenameMetric(m.id, name)}
                 onDelete={() => onDeleteMetric(m.id)}
               />
@@ -186,39 +298,7 @@ export function CountView({
       </DndContext>
 
       {adding ? (
-        <form
-          className="rounded-2xl border border-border bg-surface-card p-3 space-y-2"
-          onSubmit={(e) => {
-            e.preventDefault()
-            handleCreate()
-          }}
-        >
-          <input
-            autoFocus
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="Metric name"
-            className="w-full rounded-xl bg-surface px-3 py-3 text-sm text-text outline-none ring-1 ring-border focus:ring-accent"
-          />
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              className="tap-feedback flex-1 rounded-xl bg-accent py-2.5 text-sm font-semibold text-white"
-            >
-              Add
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAdding(false)
-                setNewName('')
-              }}
-              className="tap-feedback rounded-xl bg-surface-hover px-4 py-2.5 text-sm text-text-muted"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
+        addForm
       ) : (
         <button
           type="button"

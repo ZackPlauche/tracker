@@ -32,6 +32,9 @@ export function loadData(): AppData {
       events: Array.isArray(parsed.events) ? parsed.events : [],
       activeFunnelId: parsed.activeFunnelId ?? null,
       updatedAt: typeof parsed.updatedAt === 'number' ? parsed.updatedAt : Date.now(),
+      ...(typeof parsed.accentColor === 'string' && parsed.accentColor
+        ? { accentColor: parsed.accentColor }
+        : {}),
     }
   } catch {
     const blank = emptyData()

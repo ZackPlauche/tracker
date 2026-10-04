@@ -1,7 +1,11 @@
+export type MetricKind = 'count' | 'in' | 'out'
+
 export type Metric = {
   id: string
   name: string
   order: number
+  /** Missing or count = tap counter. in/out = cash amount entries. */
+  kind?: MetricKind
 }
 
 export type Funnel = {
@@ -11,6 +15,8 @@ export type Funnel = {
   createdAt: number
   /** Hidden from the main list; still stored and restorable */
   archived?: boolean
+  /** Box color override. Missing = use the global accent. */
+  color?: string
 }
 
 export type Event = {
@@ -18,6 +24,8 @@ export type Event = {
   metricId: string
   timestamp: number
   delta: number
+  /** Optional note on a cash entry */
+  note?: string
 }
 
 export type AppData = {
@@ -26,6 +34,8 @@ export type AppData = {
   activeFunnelId: string | null
   /** Last local/cloud write time — used for LWW sync */
   updatedAt?: number
+  /** Default box color for funnels that have no color of their own */
+  accentColor?: string
 }
 
 export type CloudAppData = {
@@ -33,6 +43,7 @@ export type CloudAppData = {
   events: Event[]
   activeFunnelId: string | null
   updatedAt: number
+  accentColor?: string
 }
 
 export type ViewTab = 'count' | 'charts' | 'sheet'

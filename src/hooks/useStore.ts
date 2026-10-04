@@ -3,7 +3,7 @@ import { doc, onSnapshot, setDoc } from 'firebase/firestore'
 import { v4 as uuid } from 'uuid'
 import { db } from '../lib/firebase'
 import { clearLocalData, emptyData, loadData, saveData } from '../storage'
-import type { AppData, CloudAppData, Event, Funnel, Metric } from '../types'
+import type { AppData, CloudAppData, Event, Funnel, Metric, MetricKind } from '../types'
 import {
   dayCount,
   eventTimestampForDay,
@@ -23,6 +23,7 @@ function toCloud(data: AppData): CloudAppData {
     events: data.events,
     activeFunnelId: data.activeFunnelId,
     updatedAt: data.updatedAt ?? Date.now(),
+    ...(data.accentColor ? { accentColor: data.accentColor } : {}),
   }
   // Firestore rejects undefined; JSON round-trip strips it
   return JSON.parse(JSON.stringify(payload)) as CloudAppData
@@ -34,6 +35,9 @@ function fromCloud(raw: CloudAppData): AppData {
     events: Array.isArray(raw.events) ? raw.events : [],
     activeFunnelId: raw.activeFunnelId ?? null,
     updatedAt: typeof raw.updatedAt === 'number' ? raw.updatedAt : Date.now(),
+    ...(typeof raw.accentColor === 'string' && raw.accentColor
+      ? { accentColor: raw.accentColor }
+      : {}),
   }
 }
 
@@ -270,7 +274,7 @@ export function useStore(uid: string | null) {
         if (activeFunnelId === id) {
           activeFunnelId = funnels.find((f) => !f.archived)?.id ?? null
         }
-        return { funnels, events, activeFunnelId }
+        return { ...d, funnels, events, activeFunnelId }
       })
     },
     [mutate],
@@ -303,7 +307,7 @@ export function useStore(uid: string | null) {
   )
 
   const createMetric = useCallback(
-    (funnelId: string, name: string) => {
+    (funnelId: string, name: string, kind: MetricKind = 'count') => {
       mutate((d) => ({
         ...d,
         funnels: d.funnels.map((f) => {
@@ -313,6 +317,7 @@ export function useStore(uid: string | null) {
             id: uuid(),
             name: name.trim() || `Metric ${order + 1}`,
             order,
+            ...(kind === 'in' || kind === 'out' ? { kind } : {}),
           }
           return { ...f, metrics: [...f.metrics, metric] }
         }),
@@ -446,6 +451,80 @@ export function useStore(uid: string | null) {
     [mutate],
   )
 
+
+  const addAmount = useCallback(
+    (metricId: string, amount: number, note: string, dayStart: number = startOfDay()) => {
+      const value = Math.abs(Number(amount))
+      if (!Number.isFinite(value) || value <= 0) return
+      const trimmed = note.trim()
+      mutate((d) => {
+        let kind: MetricKind = 'count'
+        for (const f of d.funnels) {
+          const m = f.metrics.find((metric) => metric.id === metricId)
+          if (m) {
+            kind = m.kind === 'in' || m.kind === 'out' ? m.kind : 'count'
+            break
+          }
+        }
+        const delta = kind === 'out' ? -value : value
+        if (delta === 0) return d
+        const event: Event = {
+          id: uuid(),
+          metricId,
+          timestamp: eventTimestampForDay(dayStart),
+          delta,
+          ...(trimmed ? { note: trimmed } : {}),
+        }
+        return { ...d, events: [...d.events, event] }
+      })
+    },
+    [mutate],
+  )
+
+  const removeEvent = useCallback(
+    (eventId: string) => {
+      mutate((d) => {
+        if (!d.events.some((e) => e.id === eventId)) return d
+        return { ...d, events: d.events.filter((e) => e.id !== eventId) }
+      })
+    },
+    [mutate],
+  )
+
+  const setAccentColor = useCallback(
+    (color: string) => {
+      mutate((d) => {
+        if (d.accentColor === color) return d
+        return { ...d, accentColor: color }
+      })
+    },
+    [mutate],
+  )
+
+  const setFunnelColor = useCallback(
+    (id: string, color: string | null) => {
+      mutate((d) => {
+        let changed = false
+        const funnels = d.funnels.map((f) => {
+          if (f.id !== id) return f
+          if (!color) {
+            if (!f.color) return f
+            changed = true
+            const next = { ...f }
+            delete next.color
+            return next
+          }
+          if (f.color === color) return f
+          changed = true
+          return { ...f, color }
+        })
+        if (!changed) return d
+        return { ...d, funnels }
+      })
+    },
+    [mutate],
+  )
+
   const resetAll = useCallback(async () => {
     const blank = stamp(emptyData())
     applyingRemote.current = true
@@ -491,5 +570,9 @@ export function useStore(uid: string | null) {
     decrement,
     undoLast,
     setDayCount,
+    addAmount,
+    removeEvent,
+    setAccentColor,
+    setFunnelColor,
   }
 }
