@@ -97,24 +97,7 @@ export function MetricCard({
       }`}
     >
       <div className="flex items-start justify-between gap-1 px-3 pt-3 pb-2">
-        <div className="flex min-w-0 flex-1 items-center gap-1.5">
-          <button
-            type="button"
-            className="mt-0.5 flex h-6 w-6 shrink-0 touch-none items-center justify-center rounded-md text-text-dim active:bg-surface-hover active:text-text"
-            title="Drag to reorder"
-            aria-label="Drag to reorder"
-            {...dragHandleProps}
-            style={{ ...dragHandleProps?.style, touchAction: 'none' }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-              <circle cx="9" cy="6" r="1.5" />
-              <circle cx="15" cy="6" r="1.5" />
-              <circle cx="9" cy="12" r="1.5" />
-              <circle cx="15" cy="12" r="1.5" />
-              <circle cx="9" cy="18" r="1.5" />
-              <circle cx="15" cy="18" r="1.5" />
-            </svg>
-          </button>
+        <div className="flex min-w-0 flex-1 items-center">
           {editing ? (
             <form
               className="min-w-0 flex-1"
@@ -138,8 +121,10 @@ export function MetricCard({
                 setName(metric.name)
                 setEditing(true)
               }}
-              className="tap-feedback min-w-0 flex-1 text-left text-sm font-semibold leading-tight text-text hover:text-accent-hover line-clamp-2"
-              title="Tap to rename"
+              className="tap-feedback min-w-0 flex-1 cursor-grab truncate text-left text-sm font-semibold text-text hover:text-accent-hover active:cursor-grabbing"
+              title="Drag to reorder, tap to rename"
+              {...dragHandleProps}
+              style={{ ...dragHandleProps?.style, touchAction: 'none' }}
             >
               {metric.name}
             </button>
