@@ -1,6 +1,23 @@
-import type { AppData } from './types'
+import type { AppData, Folder } from './types'
 
 const STORAGE_KEY = 'tracker-app-v2'
+
+export function sanitizeFolders(raw: unknown): Folder[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const folders: Folder[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const f = item as Folder
+    if (typeof f.id !== 'string' || typeof f.name !== 'string') continue
+    folders.push({
+      id: f.id,
+      name: f.name,
+      ...(typeof f.order === 'number' ? { order: f.order } : {}),
+    })
+  }
+  return folders.length ? folders : undefined
+}
+
 
 export function emptyData(): AppData {
   return {
@@ -27,6 +44,7 @@ export function loadData(): AppData {
       saveData(blank)
       return blank
     }
+    const folders = sanitizeFolders(parsed.folders)
     return {
       funnels: parsed.funnels,
       events: Array.isArray(parsed.events) ? parsed.events : [],
@@ -35,6 +53,7 @@ export function loadData(): AppData {
       ...(typeof parsed.accentColor === 'string' && parsed.accentColor
         ? { accentColor: parsed.accentColor }
         : {}),
+      ...(folders ? { folders } : {}),
     }
   } catch {
     const blank = emptyData()

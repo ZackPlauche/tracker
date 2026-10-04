@@ -50,6 +50,13 @@ export default function App() {
         onDelete={store.deleteFunnel}
         onArchive={store.archiveFunnel}
         onRestore={store.restoreFunnel}
+        folders={data.folders ?? []}
+        onReorderFunnels={store.reorderFunnels}
+        onMoveFunnel={store.moveFunnel}
+        onCreateFolder={store.createFolder}
+        onRenameFolder={store.renameFolder}
+        onDeleteFolder={store.deleteFolder}
+        onReorderFolders={store.reorderFolders}
         accentColor={data.accentColor}
         onSetAccent={store.setAccentColor}
         onSetFunnelColor={store.setFunnelColor}

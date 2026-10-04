@@ -17,6 +17,16 @@ export type Funnel = {
   archived?: boolean
   /** Box color override. Missing = use the global accent. */
   color?: string
+  /** Sidebar order within its folder (or the top level). Missing sorts after numbered ones, by createdAt. */
+  order?: number
+  /** Folder this funnel lives in. Missing = top level. */
+  folderId?: string
+}
+
+export type Folder = {
+  id: string
+  name: string
+  order?: number
 }
 
 export type Event = {
@@ -36,6 +46,8 @@ export type AppData = {
   updatedAt?: number
   /** Default box color for funnels that have no color of their own */
   accentColor?: string
+  /** Sidebar folders. Missing = no folders, every funnel is top level. */
+  folders?: Folder[]
 }
 
 export type CloudAppData = {
@@ -44,6 +56,7 @@ export type CloudAppData = {
   activeFunnelId: string | null
   updatedAt: number
   accentColor?: string
+  folders?: Folder[]
 }
 
 export type ViewTab = 'count' | 'charts' | 'sheet'

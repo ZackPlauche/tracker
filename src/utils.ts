@@ -1,4 +1,4 @@
-import type { Event, Metric, MetricKind } from './types'
+import type { Event, Folder, Funnel, Metric, MetricKind } from './types'
 import type { ChartPeriod } from './types'
 
 export function startOfDay(ts: number = Date.now()): number {
@@ -78,6 +78,32 @@ export function formatDayKey(ts: number): string {
 
 export function sortedMetrics(metrics: Metric[]): Metric[] {
   return [...metrics].sort((a, b) => a.order - b.order)
+}
+
+/** Numbered orders first. Missing order follows, stable by createdAt. */
+export function sortedFunnels(funnels: Funnel[]): Funnel[] {
+  return [...funnels].sort((a, b) => {
+    const aHas = typeof a.order === 'number'
+    const bHas = typeof b.order === 'number'
+    if (aHas && bHas && a.order !== b.order) return a.order! - b.order!
+    if (aHas !== bHas) return aHas ? -1 : 1
+    if (a.createdAt !== b.createdAt) return a.createdAt - b.createdAt
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+  })
+}
+
+/** Numbered orders first. Missing order keeps the previous array order. */
+export function sortedFolders(folders: Folder[]): Folder[] {
+  return folders
+    .map((folder, index) => ({ folder, index }))
+    .sort((a, b) => {
+      const aHas = typeof a.folder.order === 'number'
+      const bHas = typeof b.folder.order === 'number'
+      if (aHas && bHas && a.folder.order !== b.folder.order) return a.folder.order! - b.folder.order!
+      if (aHas !== bHas) return aHas ? -1 : 1
+      return a.index - b.index
+    })
+    .map((row) => row.folder)
 }
 
 export function getDayRange(from: number | null, events: Event[]): number[] {

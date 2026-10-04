@@ -101,9 +101,10 @@ export function MetricCard({
           <button
             type="button"
             className="mt-0.5 flex h-9 w-9 shrink-0 touch-none items-center justify-center rounded-lg text-text-dim active:bg-surface-hover active:text-text"
-            title="Drag to reorder"
-            aria-label="Drag to reorder"
+            title="Hold and drag to reorder"
+            aria-label="Hold and drag to reorder"
             {...dragHandleProps}
+            style={{ ...dragHandleProps?.style, touchAction: 'none' }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
               <circle cx="9" cy="6" r="1.5" />

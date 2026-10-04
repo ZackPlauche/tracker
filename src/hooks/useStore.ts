@@ -2,11 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { doc, onSnapshot, setDoc } from 'firebase/firestore'
 import { v4 as uuid } from 'uuid'
 import { db } from '../lib/firebase'
-import { clearLocalData, emptyData, loadData, saveData } from '../storage'
-import type { AppData, CloudAppData, Event, Funnel, Metric, MetricKind } from '../types'
+import { clearLocalData, emptyData, loadData, sanitizeFolders, saveData } from '../storage'
+import type { AppData, CloudAppData, Event, Folder, Funnel, Metric, MetricKind } from '../types'
 import {
   dayCount,
   eventTimestampForDay,
+  sortedFunnels,
   sortedMetrics,
   startOfDay,
 } from '../utils'
@@ -24,12 +25,14 @@ function toCloud(data: AppData): CloudAppData {
     activeFunnelId: data.activeFunnelId,
     updatedAt: data.updatedAt ?? Date.now(),
     ...(data.accentColor ? { accentColor: data.accentColor } : {}),
+    ...(data.folders && data.folders.length ? { folders: data.folders } : {}),
   }
   // Firestore rejects undefined; JSON round-trip strips it
   return JSON.parse(JSON.stringify(payload)) as CloudAppData
 }
 
 function fromCloud(raw: CloudAppData): AppData {
+  const folders = sanitizeFolders(raw.folders)
   return {
     funnels: Array.isArray(raw.funnels) ? raw.funnels : [],
     events: Array.isArray(raw.events) ? raw.events : [],
@@ -38,6 +41,7 @@ function fromCloud(raw: CloudAppData): AppData {
     ...(typeof raw.accentColor === 'string' && raw.accentColor
       ? { accentColor: raw.accentColor }
       : {}),
+    ...(folders ? { folders } : {}),
   }
 }
 
@@ -241,11 +245,22 @@ export function useStore(uid: string | null) {
         metrics: [],
         createdAt: Date.now(),
       }
-      mutate((d) => ({
-        ...d,
-        funnels: [...d.funnels, funnel],
-        activeFunnelId: id,
-      }))
+      mutate((d) => {
+        const valid = new Set((d.folders ?? []).map((folder) => folder.id))
+        const peers = sortedFunnels(
+          d.funnels.filter((f) => !f.archived && !(f.folderId && valid.has(f.folderId))),
+        )
+        const orderedIds = [...peers.map((f) => f.id), id]
+        const index = new Map(orderedIds.map((fid, i) => [fid, i]))
+        const funnels = [...d.funnels, funnel].map((f) => {
+          const order = index.get(f.id)
+          if (order === undefined) return f
+          const next: Funnel = { ...f, order }
+          delete next.folderId
+          return next
+        })
+        return { ...d, funnels, activeFunnelId: id }
+      })
       return id
     },
     [mutate],
@@ -302,6 +317,146 @@ export function useStore(uid: string | null) {
         funnels: d.funnels.map((f) => (f.id === id ? { ...f, archived: false } : f)),
         activeFunnelId: id,
       }))
+    },
+    [mutate],
+  )
+
+  const reorderFunnels = useCallback(
+    (orderedIds: string[], folderId: string | null) => {
+      mutate((d) => {
+        const valid = new Set((d.folders ?? []).map((folder) => folder.id))
+        const target = folderId && valid.has(folderId) ? folderId : null
+        const index = new Map(orderedIds.map((id, i) => [id, i]))
+        let changed = false
+        const funnels = d.funnels.map((f) => {
+          const order = index.get(f.id)
+          if (order === undefined) return f
+          if (f.order === order && (target ? f.folderId === target : f.folderId == null)) return f
+          changed = true
+          const next: Funnel = { ...f, order }
+          if (target) next.folderId = target
+          else delete next.folderId
+          return next
+        })
+        if (!changed) return d
+        return { ...d, funnels }
+      })
+    },
+    [mutate],
+  )
+
+  const moveFunnel = useCallback(
+    (id: string, folderId: string | null) => {
+      mutate((d) => {
+        const current = d.funnels.find((f) => f.id === id)
+        if (!current) return d
+        const valid = new Set((d.folders ?? []).map((folder) => folder.id))
+        const target = folderId && valid.has(folderId) ? folderId : null
+        const groupOf = (f: Funnel) => (f.folderId && valid.has(f.folderId) ? f.folderId : null)
+        if (groupOf(current) === target) return d
+        const peers = sortedFunnels(
+          d.funnels.filter((f) => f.id !== id && !f.archived && groupOf(f) === target),
+        )
+        const orderedIds = [...peers.map((f) => f.id), id]
+        const index = new Map(orderedIds.map((fid, i) => [fid, i]))
+        const funnels = d.funnels.map((f) => {
+          const order = index.get(f.id)
+          if (order === undefined) return f
+          const next: Funnel = { ...f, order }
+          if (target) next.folderId = target
+          else delete next.folderId
+          return next
+        })
+        return { ...d, funnels }
+      })
+    },
+    [mutate],
+  )
+
+  const createFolder = useCallback(
+    (name: string) => {
+      const id = uuid()
+      mutate((d) => {
+        const existing = d.folders ?? []
+        let max = -1
+        for (const folder of existing) {
+          if (typeof folder.order === 'number') max = Math.max(max, folder.order)
+        }
+        const folder: Folder = { id, name: name.trim() || 'New folder', order: max + 1 }
+        return { ...d, folders: [...existing, folder] }
+      })
+      return id
+    },
+    [mutate],
+  )
+
+  const renameFolder = useCallback(
+    (id: string, name: string) => {
+      mutate((d) => {
+        const existing = d.folders ?? []
+        if (!existing.some((folder) => folder.id === id)) return d
+        return {
+          ...d,
+          folders: existing.map((folder) =>
+            folder.id === id ? { ...folder, name: name.trim() || folder.name } : folder,
+          ),
+        }
+      })
+    },
+    [mutate],
+  )
+
+  const deleteFolder = useCallback(
+    (id: string) => {
+      mutate((d) => {
+        const existing = d.folders ?? []
+        if (!existing.some((folder) => folder.id === id)) return d
+        const folders = existing.filter((folder) => folder.id !== id)
+        const funnels = d.funnels.map((f) => {
+          if (f.folderId !== id) return f
+          const next = { ...f }
+          delete next.folderId
+          return next
+        })
+        const next: AppData = { ...d, funnels }
+        if (folders.length) next.folders = folders
+        else delete next.folders
+        return next
+      })
+    },
+    [mutate],
+  )
+
+  const reorderFolders = useCallback(
+    (orderedIds: string[]) => {
+      mutate((d) => {
+        const existing = d.folders ?? []
+        if (!existing.length) return d
+        const byId = new Map(existing.map((folder) => [folder.id, folder]))
+        const folders: Folder[] = []
+        orderedIds.forEach((id, i) => {
+          const folder = byId.get(id)
+          if (!folder) return
+          folders.push({ ...folder, order: i })
+          byId.delete(id)
+        })
+        let i = folders.length
+        for (const folder of existing) {
+          if (!byId.has(folder.id)) continue
+          folders.push({ ...folder, order: i })
+          i += 1
+        }
+        const same =
+          existing.length === folders.length &&
+          existing.every(
+            (folder, index) =>
+              folder.id === folders[index]?.id &&
+              folder.order === folders[index]?.order &&
+              folder.name === folders[index]?.name,
+          )
+        if (same) return d
+        return { ...d, folders }
+      })
     },
     [mutate],
   )
@@ -562,6 +717,12 @@ export function useStore(uid: string | null) {
     deleteFunnel,
     archiveFunnel,
     restoreFunnel,
+    reorderFunnels,
+    moveFunnel,
+    createFolder,
+    renameFolder,
+    deleteFolder,
+    reorderFolders,
     createMetric,
     renameMetric,
     deleteMetric,
