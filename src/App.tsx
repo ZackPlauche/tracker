@@ -39,6 +39,8 @@ export default function App() {
         onCreate={store.createFunnel}
         onRename={store.renameFunnel}
         onDelete={store.deleteFunnel}
+        onArchive={store.archiveFunnel}
+        onRestore={store.restoreFunnel}
         onReset={() => {
           void store.resetAll()
         }}

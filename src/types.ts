@@ -9,6 +9,8 @@ export type Funnel = {
   name: string
   metrics: Metric[]
   createdAt: number
+  /** Hidden from the main list; still stored and restorable */
+  archived?: boolean
 }
 
 export type Event = {

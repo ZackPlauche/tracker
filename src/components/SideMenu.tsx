@@ -10,6 +10,8 @@ type Props = {
   onCreate: (name: string) => void
   onRename: (id: string, name: string) => void
   onDelete: (id: string) => void
+  onArchive: (id: string) => void
+  onRestore: (id: string) => void
   onReset?: () => void
 }
 
@@ -22,12 +24,18 @@ export function SideMenu({
   onCreate,
   onRename,
   onDelete,
+  onArchive,
+  onRestore,
   onReset,
 }: Props) {
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
+  const [archiveOpen, setArchiveOpen] = useState(false)
+
+  const active = funnels.filter((f) => !f.archived)
+  const archived = funnels.filter((f) => f.archived)
 
   function handleCreate() {
     if (!newName.trim()) return
@@ -122,12 +130,14 @@ export function SideMenu({
           </div>
 
           <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-3">
-            {funnels.length === 0 && (
+            {active.length === 0 && (
               <p className="px-3 py-6 text-center text-sm text-text-dim">
-                No funnels yet. Create one to start tracking.
+                {archived.length > 0
+                  ? 'No active funnels. Restore one from the archive, or create a new one.'
+                  : 'No funnels yet. Create one to start tracking.'}
               </p>
             )}
-            {funnels.map((f) => (
+            {active.map((f) => (
               <div
                 key={f.id}
                 className={`group flex items-center gap-1 rounded-xl ${
@@ -176,6 +186,16 @@ export function SideMenu({
                     </button>
                     <button
                       type="button"
+                      className="tap-feedback flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-text-dim hover:bg-surface-hover hover:text-text"
+                      onClick={() => onArchive(f.id)}
+                      aria-label={`Archive ${f.name}`}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M3 7h18v4H3zM5 11v8h14v-8M10 15h4" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
                       className="tap-feedback flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-text-dim hover:bg-danger/20 hover:text-danger"
                       onClick={() => {
                         if (confirm(`Delete funnel “${f.name}”? This cannot be undone.`)) {
@@ -192,6 +212,69 @@ export function SideMenu({
                 )}
               </div>
             ))}
+
+            {archived.length > 0 && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setArchiveOpen((v) => !v)}
+                  className="tap-feedback flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-text-dim hover:bg-surface-card hover:text-text"
+                  aria-expanded={archiveOpen}
+                >
+                  <span>Archive ({archived.length})</span>
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className={archiveOpen ? 'rotate-180' : ''}
+                    aria-hidden
+                  >
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+                {archiveOpen && (
+                  <div className="mt-1 space-y-1">
+                    {archived.map((f) => (
+                      <div
+                        key={f.id}
+                        className="flex items-center gap-1 rounded-xl hover:bg-surface-card"
+                      >
+                        <span className="min-w-0 flex-1 truncate px-3 py-2.5 text-sm text-text-muted">
+                          {f.name}
+                        </span>
+                        <button
+                          type="button"
+                          className="tap-feedback shrink-0 rounded-lg px-2 py-1.5 text-xs font-semibold text-accent hover:bg-accent/10"
+                          onClick={() => {
+                            onRestore(f.id)
+                            setArchiveOpen(false)
+                          }}
+                        >
+                          Restore
+                        </button>
+                        <button
+                          type="button"
+                          className="tap-feedback flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-text-dim hover:bg-danger/20 hover:text-danger"
+                          onClick={() => {
+                            if (confirm(`Delete funnel “${f.name}”? This cannot be undone.`)) {
+                              onDelete(f.id)
+                            }
+                          }}
+                          aria-label={`Delete ${f.name}`}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </nav>
 
           <div className="border-t border-border-subtle p-3">

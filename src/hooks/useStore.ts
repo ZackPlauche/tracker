@@ -216,10 +216,10 @@ export function useStore(uid: string | null) {
     })
   }, [])
 
-  const activeFunnel = useMemo(
-    () => data.funnels.find((f) => f.id === data.activeFunnelId) ?? data.funnels[0] ?? null,
-    [data.funnels, data.activeFunnelId],
-  )
+  const activeFunnel = useMemo(() => {
+    const visible = data.funnels.filter((f) => !f.archived)
+    return visible.find((f) => f.id === data.activeFunnelId) ?? visible[0] ?? null
+  }, [data.funnels, data.activeFunnelId])
 
   const setActiveFunnel = useCallback(
     (id: string) => {
@@ -268,10 +268,36 @@ export function useStore(uid: string | null) {
         const events = d.events.filter((e) => !metricIds.has(e.metricId))
         let activeFunnelId = d.activeFunnelId
         if (activeFunnelId === id) {
-          activeFunnelId = funnels[0]?.id ?? null
+          activeFunnelId = funnels.find((f) => !f.archived)?.id ?? null
         }
         return { funnels, events, activeFunnelId }
       })
+    },
+    [mutate],
+  )
+
+
+  const archiveFunnel = useCallback(
+    (id: string) => {
+      mutate((d) => {
+        const funnels = d.funnels.map((f) => (f.id === id ? { ...f, archived: true } : f))
+        let activeFunnelId = d.activeFunnelId
+        if (activeFunnelId === id) {
+          activeFunnelId = funnels.find((f) => !f.archived)?.id ?? null
+        }
+        return { ...d, funnels, activeFunnelId }
+      })
+    },
+    [mutate],
+  )
+
+  const restoreFunnel = useCallback(
+    (id: string) => {
+      mutate((d) => ({
+        ...d,
+        funnels: d.funnels.map((f) => (f.id === id ? { ...f, archived: false } : f)),
+        activeFunnelId: id,
+      }))
     },
     [mutate],
   )
@@ -455,6 +481,8 @@ export function useStore(uid: string | null) {
     createFunnel,
     renameFunnel,
     deleteFunnel,
+    archiveFunnel,
+    restoreFunnel,
     createMetric,
     renameMetric,
     deleteMetric,
