@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core'
+import { DndContext, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import {
   SortableContext,
   arrayMove,
@@ -9,7 +9,6 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import type { Event, Funnel, Metric, MetricKind } from '../types'
 import { dayCount, dayEntries, formatAmount, metricKind, moneyDayTotals, resolveAccent, sortedMetrics } from '../utils'
-import { useReorderSensors } from '../hooks/useReorderSensors'
 import { DayScroller } from './DayScroller'
 import { MetricCard } from './MetricCard'
 
@@ -118,7 +117,10 @@ export function CountView({
   const [newName, setNewName] = useState('')
   const [newKind, setNewKind] = useState<MetricKind>('count')
 
-  const sensors = useReorderSensors()
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
+  )
 
   function handleCreate() {
     if (!newName.trim()) return

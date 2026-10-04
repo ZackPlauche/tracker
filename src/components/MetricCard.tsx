@@ -101,8 +101,8 @@ export function MetricCard({
           <button
             type="button"
             className="mt-0.5 flex h-9 w-9 shrink-0 touch-none items-center justify-center rounded-lg text-text-dim active:bg-surface-hover active:text-text"
-            title="Hold and drag to reorder"
-            aria-label="Hold and drag to reorder"
+            title="Drag to reorder"
+            aria-label="Drag to reorder"
             {...dragHandleProps}
             style={{ ...dragHandleProps?.style, touchAction: 'none' }}
           >
