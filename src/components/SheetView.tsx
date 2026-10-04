@@ -36,6 +36,12 @@ export function SheetView({ funnel, events }: Props) {
     })
   }, [funnelEvents, metrics])
 
+  const visibleRows = useMemo(() => {
+    if (exportSpan === 'data') return rows.filter((row) => row.total > 0)
+    if (exportSpan === 'all') return rows
+    return rows.slice(0, Number(exportSpan))
+  }, [rows, exportSpan])
+
   if (metrics.length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
@@ -54,19 +60,10 @@ export function SheetView({ funnel, events }: Props) {
     )
   }
 
-  const exportRows = useMemo(() => {
-    // Export only: oldest first. The on-screen table stays newest first.
-    const chronological = [...rows].reverse()
-    if (exportSpan === 'data') return chronological.filter((row) => row.total > 0)
-    if (exportSpan === 'all') return chronological
-    const keep = Number(exportSpan)
-    return chronological.slice(-keep)
-  }, [rows, exportSpan])
-
   const sheet = {
     funnelName: funnel.name,
     headers: metrics.map((m) => m.name),
-    rows: exportRows.map((row) => ({ label: row.label, cells: row.cells })),
+    rows: [...visibleRows].reverse().map((row) => ({ label: row.label, cells: row.cells })),
   }
 
   async function exportPdf() {
@@ -82,7 +79,7 @@ export function SheetView({ funnel, events }: Props) {
     <div className="flex flex-1 flex-col overflow-hidden p-3 pb-4">
       <div className="mb-2 flex items-center justify-end gap-2">
         <label className="mr-auto text-[11px] text-text-dim">
-          <span className="sr-only">Dates in the file</span>
+          <span className="sr-only">Dates to show</span>
           <select
             value={exportSpan}
             onChange={(e) => setExportSpan(e.target.value as ExportSpan)}
@@ -131,7 +128,7 @@ export function SheetView({ funnel, events }: Props) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {visibleRows.map((row) => (
               <tr
                 key={row.key}
                 className={`border-b border-border-subtle ${
