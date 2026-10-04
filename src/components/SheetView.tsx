@@ -8,8 +8,11 @@ type Props = {
   events: Event[]
 }
 
+type ExportSpan = 'data' | '7' | '14' | '30' | 'all'
+
 export function SheetView({ funnel, events }: Props) {
   const [exporting, setExporting] = useState(false)
+  const [exportSpan, setExportSpan] = useState<ExportSpan>('data')
   const metrics = sortedMetrics(funnel.metrics)
   const metricIds = useMemo(() => new Set(metrics.map((m) => m.id)), [metrics])
   const funnelEvents = useMemo(
@@ -51,10 +54,19 @@ export function SheetView({ funnel, events }: Props) {
     )
   }
 
+  const exportRows = useMemo(() => {
+    // Export only: oldest first. The on-screen table stays newest first.
+    const chronological = [...rows].reverse()
+    if (exportSpan === 'data') return chronological.filter((row) => row.total > 0)
+    if (exportSpan === 'all') return chronological
+    const keep = Number(exportSpan)
+    return chronological.slice(-keep)
+  }, [rows, exportSpan])
+
   const sheet = {
     funnelName: funnel.name,
     headers: metrics.map((m) => m.name),
-    rows: rows.map((row) => ({ label: row.label, cells: row.cells })),
+    rows: exportRows.map((row) => ({ label: row.label, cells: row.cells })),
   }
 
   async function exportPdf() {
@@ -69,6 +81,20 @@ export function SheetView({ funnel, events }: Props) {
   return (
     <div className="flex flex-1 flex-col overflow-hidden p-3 pb-4">
       <div className="mb-2 flex items-center justify-end gap-2">
+        <label className="mr-auto text-[11px] text-text-dim">
+          <span className="sr-only">Dates in the file</span>
+          <select
+            value={exportSpan}
+            onChange={(e) => setExportSpan(e.target.value as ExportSpan)}
+            className="rounded-xl bg-surface-card px-2 py-2 text-xs font-semibold text-text-muted"
+          >
+            <option value="data">Days with data</option>
+            <option value="7">Last 7 days</option>
+            <option value="14">Last 14 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="all">Every day</option>
+          </select>
+        </label>
         <button
           type="button"
           onClick={() => downloadSheetCsv(sheet)}

@@ -106,7 +106,7 @@ export async function downloadSheetPdf(sheet: SheetExport) {
   })
   y += 12
 
-  const days = [...sheet.rows].reverse().slice(-14)
+  const days = sheet.rows.slice(-14)
   const dayMax = Math.max(1, ...days.map((row) => row.cells.reduce((sum, n) => sum + n, 0)))
   const chartHeight = 88
   ensure(chartHeight + 36)
