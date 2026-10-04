@@ -85,8 +85,45 @@ export async function downloadSheetPdf(sheet: SheetExport) {
   const totals = sheet.headers.map((_, index) =>
     sheet.rows.reduce((sum, row) => sum + (row.cells[index] ?? 0), 0),
   )
+
+  autoTable(doc, {
+    startY: y,
+    margin: { left: 36, right: 36, top: 36 },
+    head: [['Date', ...sheet.headers]],
+    body: sheet.rows.map((row) => [row.label, ...row.cells.map((n) => (n === 0 ? '—' : String(n)))]),
+    theme: 'plain',
+    willDrawPage: (data) => {
+      if (data.pageNumber > 1) paintPage()
+    },
+    styles: {
+      font: 'helvetica',
+      fontSize: 10,
+      textColor: [244, 244, 248],
+      fillColor: [26, 26, 36],
+      lineColor: [42, 42, 58],
+      lineWidth: 0.4,
+      cellPadding: { top: 7, right: 8, bottom: 7, left: 8 },
+    },
+    headStyles: {
+      fillColor: [99, 102, 241],
+      textColor: 255,
+      fontStyle: 'bold',
+      fontSize: 9,
+    },
+    alternateRowStyles: { fillColor: [18, 18, 26] },
+    columnStyles: {
+      0: { fontStyle: 'bold', textColor: [244, 244, 248] },
+    },
+  })
+
+  y = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y
+  y += 28
+
   const funnelMax = Math.max(1, ...totals)
-  ensure(28 + sheet.headers.length * 18)
+  const stageH = 26
+  const funnelW = Math.min(220, contentWidth * 0.46)
+  const funnelLeft = left
+  ensure(28 + sheet.headers.length * (stageH + 2) + 8)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(12)
   doc.setTextColor(244, 244, 248)
@@ -94,17 +131,31 @@ export async function downloadSheetPdf(sheet: SheetExport) {
   y += 16
   sheet.headers.forEach((header, index) => {
     const value = totals[index] ?? 0
+    const next = index + 1 < totals.length ? (totals[index + 1] ?? 0) : value * 0.35
+    const topW = Math.max(10, (value / funnelMax) * funnelW)
+    const botW = Math.max(6, (next / funnelMax) * funnelW)
     const [r, g, b] = chartColors[index % chartColors.length]
-    const barWidth = Math.max(4, (value / funnelMax) * (contentWidth - 120))
+    const cx = funnelLeft + funnelW / 2
     doc.setFillColor(r, g, b)
-    doc.roundedRect(left, y, barWidth, 12, 2, 2, 'F')
+    doc.lines(
+      [
+        [topW, 0],
+        [(botW - topW) / 2, stageH],
+        [-botW, 0],
+      ],
+      cx - topW / 2,
+      y,
+      [1, 1],
+      'F',
+      true,
+    )
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(8)
+    doc.setFontSize(9)
     doc.setTextColor(244, 244, 248)
-    doc.text(`${header}  ${value}`, left + barWidth + 8, y + 9)
-    y += 18
+    doc.text(`${header}  ${value}`, funnelLeft + funnelW + 16, y + stageH / 2 + 3)
+    y += stageH + 2
   })
-  y += 12
+  y += 16
 
   const days = sheet.rows.slice(-14)
   const dayMax = Math.max(1, ...days.map((row) => row.cells.reduce((sum, n) => sum + n, 0)))
@@ -137,36 +188,6 @@ export async function downloadSheetPdf(sheet: SheetExport) {
     doc.text(row.label, left + index * slot + 1, y)
   })
   y += 18
-
-  autoTable(doc, {
-    startY: y,
-    margin: { left: 36, right: 36, top: 36 },
-    head: [['Date', ...sheet.headers]],
-    body: sheet.rows.map((row) => [row.label, ...row.cells.map((n) => (n === 0 ? '—' : String(n)))]),
-    theme: 'plain',
-    willDrawPage: (data) => {
-      if (data.pageNumber > 1) paintPage()
-    },
-    styles: {
-      font: 'helvetica',
-      fontSize: 10,
-      textColor: [244, 244, 248],
-      fillColor: [26, 26, 36],
-      lineColor: [42, 42, 58],
-      lineWidth: 0.4,
-      cellPadding: { top: 7, right: 8, bottom: 7, left: 8 },
-    },
-    headStyles: {
-      fillColor: [99, 102, 241],
-      textColor: 255,
-      fontStyle: 'bold',
-      fontSize: 9,
-    },
-    alternateRowStyles: { fillColor: [18, 18, 26] },
-    columnStyles: {
-      0: { fontStyle: 'bold', textColor: [244, 244, 248] },
-    },
-  })
 
   doc.save(`${slug(sheet.funnelName)}-sheet.pdf`)
 }
