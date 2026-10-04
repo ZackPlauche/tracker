@@ -1,5 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { Event, Funnel } from '../types'
+import { downloadSheetCsv, downloadSheetPdf } from '../exportSheet'
 import { formatDayKey, formatDayLabel, getDayRange, sortedMetrics, startOfDay, sumEvents } from '../utils'
 
 type Props = {
@@ -8,6 +9,7 @@ type Props = {
 }
 
 export function SheetView({ funnel, events }: Props) {
+  const [exporting, setExporting] = useState(false)
   const metrics = sortedMetrics(funnel.metrics)
   const metricIds = useMemo(() => new Set(metrics.map((m) => m.id)), [metrics])
   const funnelEvents = useMemo(
@@ -49,8 +51,42 @@ export function SheetView({ funnel, events }: Props) {
     )
   }
 
+  const sheet = {
+    funnelName: funnel.name,
+    headers: metrics.map((m) => m.name),
+    rows: rows.map((row) => ({ label: row.label, cells: row.cells })),
+  }
+
+  async function exportPdf() {
+    setExporting(true)
+    try {
+      await downloadSheetPdf(sheet)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden p-3 pb-4">
+      <div className="mb-2 flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => downloadSheetCsv(sheet)}
+          className="tap-feedback rounded-xl bg-surface-card px-3 py-2 text-xs font-semibold text-text-muted hover:bg-surface-hover hover:text-text"
+        >
+          CSV
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            void exportPdf()
+          }}
+          disabled={exporting}
+          className="tap-feedback rounded-xl bg-accent px-3 py-2 text-xs font-semibold text-white hover:bg-accent-hover disabled:opacity-50"
+        >
+          {exporting ? 'Making PDF…' : 'PDF'}
+        </button>
+      </div>
       <div className="sheet-scroll flex-1 overflow-auto rounded-2xl border border-border-subtle bg-surface-card">
         <table className="w-full min-w-max border-collapse text-sm">
           <thead className="sticky top-0 z-10 bg-surface-raised">
