@@ -100,13 +100,13 @@ export function MetricCard({
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <button
             type="button"
-            className="mt-0.5 flex h-9 w-9 shrink-0 touch-none items-center justify-center rounded-lg text-text-dim active:bg-surface-hover active:text-text"
+            className="mt-0.5 flex h-6 w-6 shrink-0 touch-none items-center justify-center rounded-md text-text-dim active:bg-surface-hover active:text-text"
             title="Drag to reorder"
             aria-label="Drag to reorder"
             {...dragHandleProps}
             style={{ ...dragHandleProps?.style, touchAction: 'none' }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
               <circle cx="9" cy="6" r="1.5" />
               <circle cx="15" cy="6" r="1.5" />
               <circle cx="9" cy="12" r="1.5" />
@@ -138,7 +138,7 @@ export function MetricCard({
                 setName(metric.name)
                 setEditing(true)
               }}
-              className="tap-feedback min-w-0 truncate text-left text-sm font-semibold text-text hover:text-accent-hover"
+              className="tap-feedback min-w-0 flex-1 text-left text-sm font-semibold leading-tight text-text hover:text-accent-hover line-clamp-2"
               title="Tap to rename"
             >
               {metric.name}
@@ -150,7 +150,7 @@ export function MetricCard({
           onClick={() => {
             if (confirm(`Delete metric “${metric.name}”?`)) onDelete()
           }}
-          className="tap-feedback flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-text-dim hover:bg-danger/15 hover:text-danger"
+          className="tap-feedback flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-text-dim hover:bg-danger/15 hover:text-danger"
           aria-label={`Delete ${metric.name}`}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

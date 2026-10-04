@@ -413,7 +413,6 @@ export function SideMenu({
 
   const folderList = sortedFolders(folders)
   const validFolderIds = new Set(folderList.map((folder) => folder.id))
-  const folderNames = new Map(folderList.map((folder) => [folder.id, folder.name]))
 
   function groupOf(funnel: Funnel): string | null {
     return funnel.folderId && validFolderIds.has(funnel.folderId) ? funnel.folderId : null
@@ -758,14 +757,15 @@ export function SideMenu({
                         key={funnel.id}
                         className="flex items-center gap-1 rounded-xl hover:bg-surface-card"
                       >
-                        <span className="min-w-0 flex-1 truncate px-3 py-2.5 text-sm text-text-muted">
+                        <button
+                          type="button"
+                          className={`min-w-0 flex-1 truncate px-3 py-2.5 text-left text-sm ${
+                            funnel.id === activeFunnelId ? 'font-semibold text-text' : 'text-text-muted'
+                          }`}
+                          onClick={() => onSelect(funnel.id)}
+                        >
                           {funnel.name}
-                          {funnel.folderId && folderNames.get(funnel.folderId) && (
-                            <span className="mt-0.5 block text-[10px] text-text-dim">
-                              Restores to {folderNames.get(funnel.folderId)}
-                            </span>
-                          )}
-                        </span>
+                        </button>
                         <button
                           type="button"
                           className="shrink-0 rounded-lg px-2 py-1.5 text-xs font-semibold text-accent hover:bg-accent/10"

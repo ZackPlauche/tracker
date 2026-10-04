@@ -225,8 +225,9 @@ export function useStore(uid: string | null) {
   }, [])
 
   const activeFunnel = useMemo(() => {
-    const visible = data.funnels.filter((f) => !f.archived)
-    return visible.find((f) => f.id === data.activeFunnelId) ?? visible[0] ?? null
+    const selected = data.funnels.find((f) => f.id === data.activeFunnelId)
+    if (selected) return selected
+    return data.funnels.find((f) => !f.archived) ?? null
   }, [data.funnels, data.activeFunnelId])
 
   const setActiveFunnel = useCallback(
